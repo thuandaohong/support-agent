@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+.terraform/
+*.tfstate
+*.tfstate.*
+.env
+node_modules/
+dist/
+# sample-data/orders.csv ĐƯỢC commit: dữ liệu bịa hoàn toàn (không PII), golden set + seed DynamoDB
+# + CI cần đúng bộ dữ liệu này để chạy lặp lại được

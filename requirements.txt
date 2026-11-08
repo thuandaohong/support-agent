@@ -1,0 +1,4 @@
+# Cần Python >= 3.10 (LangGraph, AgentCore SDK). Pin version khi bắt đầu code (Phase B).
+langgraph
+langchain-aws
+boto3

@@ -1,0 +1,51 @@
+order_id,customer_id,customer,plan,product,status,order_date,amount
+1001,C001,Tran An,Pro,Tai nghe Bluetooth,delivered,2026-10-24,49
+1002,C002,Le Dung,Pro,Loa mini,processing,2026-10-04,59
+1003,C003,Tran Yen,Premium,Webcam HD,delivered,2026-11-02,45
+1004,C004,Pham Khanh,Pro,Bàn phím cơ,shipped,2026-10-03,89
+1005,C005,Pham Vy,Premium,Đồng hồ thông minh,delivered,2026-10-01,129
+1006,C006,Hoang An,Basic,Ổ cứng SSD 1TB,shipped,2026-10-17,99
+1007,C007,Hoang Giang,Basic,Chuột không dây,refunded,2026-10-17,25
+1008,C008,Tran Chi,Premium,Sạc dự phòng,delivered,2026-10-24,35
+1009,C009,Ngo Linh,Basic,Tai nghe Bluetooth,processing,2026-10-04,49
+1010,C010,Tran Phuc,Basic,Loa mini,shipped,2026-09-29,59
+1011,C011,Vu Yen,Basic,Webcam HD,processing,2026-11-05,45
+1012,C012,Pham Minh,Basic,Bàn phím cơ,cancelled,2026-11-01,89
+1013,C013,Dang Linh,Premium,Đồng hồ thông minh,shipped,2026-10-15,129
+1014,C014,Le Oanh,Premium,Ổ cứng SSD 1TB,delivered,2026-10-25,99
+1015,C015,Tran Bao,Pro,Chuột không dây,delivered,2026-10-23,25
+1016,C016,Le Son,Premium,Sạc dự phòng,delivered,2026-10-03,35
+1017,C017,Pham Nam,Basic,Tai nghe Bluetooth,delivered,2026-11-05,49
+1018,C018,Vu Phuc,Premium,Loa mini,delivered,2026-10-02,59
+1019,C019,Vu Hieu,Pro,Webcam HD,delivered,2026-10-09,45
+1020,C020,Le Linh,Basic,Bàn phím cơ,delivered,2026-10-03,89
+1021,C021,Do Linh,Pro,Đồng hồ thông minh,shipped,2026-10-01,129
+1022,C022,Dang Oanh,Premium,Ổ cứng SSD 1TB,refunded,2026-10-30,99
+1023,C023,Do Trang,Basic,Chuột không dây,processing,2026-10-31,25
+1024,C024,Le Ha,Pro,Sạc dự phòng,delivered,2026-11-03,35
+1025,C025,Dang Phuc,Pro,Tai nghe Bluetooth,refunded,2026-10-05,49
+1026,C026,Hoang Vy,Basic,Loa mini,shipped,2026-10-31,59
+1027,C021,Do Linh,Pro,Webcam HD,delivered,2026-10-20,45
+1028,C027,Dang Ha,Premium,Bàn phím cơ,delivered,2026-10-22,89
+1029,C028,Do Ha,Pro,Đồng hồ thông minh,cancelled,2026-10-19,129
+1030,C029,Do Bao,Basic,Ổ cứng SSD 1TB,delivered,2026-10-28,99
+1031,C030,Do Tuan,Basic,Chuột không dây,shipped,2026-10-07,25
+1032,C031,Nguyen Dung,Premium,Sạc dự phòng,cancelled,2026-10-19,35
+1033,C032,Pham Binh,Basic,Tai nghe Bluetooth,cancelled,2026-11-02,49
+1034,C033,Tran Trang,Basic,Loa mini,refunded,2026-10-04,59
+1035,C034,Le Giang,Pro,Webcam HD,delivered,2026-10-03,45
+1036,C035,Le Linh,Pro,Bàn phím cơ,cancelled,2026-10-11,89
+1037,C005,Pham Vy,Premium,Đồng hồ thông minh,shipped,2026-10-19,129
+1038,C022,Dang Oanh,Premium,Ổ cứng SSD 1TB,cancelled,2026-10-10,99
+1039,C036,Tran Khanh,Basic,Chuột không dây,delivered,2026-11-06,25
+1040,C037,Ngo Vy,Basic,Sạc dự phòng,shipped,2026-11-07,35
+1041,C038,Tran Binh,Premium,Tai nghe Bluetooth,delivered,2026-11-05,49
+1042,C039,Vu Chi,Pro,Loa mini,delivered,2026-10-07,59
+1043,C005,Pham Vy,Premium,Webcam HD,processing,2026-10-02,45
+1044,C040,Ngo Trang,Basic,Bàn phím cơ,processing,2026-10-12,89
+1045,C041,Pham Dung,Basic,Đồng hồ thông minh,shipped,2026-10-16,129
+1046,C042,Dang Quan,Premium,Ổ cứng SSD 1TB,cancelled,2026-11-04,99
+1047,C038,Tran Binh,Premium,Chuột không dây,processing,2026-11-01,25
+1048,C043,Pham Hieu,Basic,Sạc dự phòng,shipped,2026-10-30,35
+1049,C027,Dang Ha,Premium,Tai nghe Bluetooth,delivered,2026-11-03,49
+1050,C044,Bui Vy,Basic,Loa mini,delivered,2026-11-01,59
