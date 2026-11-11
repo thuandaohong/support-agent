@@ -26,8 +26,8 @@ Ví dụ: *"Đơn #1003 có đổi trả được không?"* → tra hạn đổi
 ## Cài đặt
 
 ```bash
-# Python >= 3.10 (đã chạy với 3.14; macOS: brew install python@3.12)
-python3 -m venv .venv && source .venv/bin/activate
+# Python >= 3.10 — macOS: python3 hệ thống là 3.9, dùng bản Homebrew (đã chạy với 3.14)
+python3.14 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env   # điền POLICY_KB_ID
 ```
