@@ -26,9 +26,23 @@ Ví dụ: *"Đơn #1003 có đổi trả được không?"* → tra hạn đổi
 ## Cài đặt
 
 ```bash
-# Python >= 3.10 (macOS: brew install python@3.12)
-python3.12 -m venv .venv && source .venv/bin/activate
+# Python >= 3.10 (đã chạy với 3.14; macOS: brew install python@3.12)
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # điền POLICY_KB_ID
 ```
+
+## Chạy thử
+
+```bash
+python tools/search_policy.py "Gói Premium đổi trả bao nhiêu ngày?"
+python tools/get_order.py 1003 C003          # customer_id bắt buộc: đơn người khác → không thấy
+python -m agents.try_supervisor              # routing accuracy trên eval/routing_cases.jsonl
+python -m pytest -q tests                    # test không gọi AWS
+```
+
+| Đo | Kết quả | Ngày |
+|---|---|---|
+| Routing accuracy (Nova Lite, 16 câu) | 15/16 = 94% — sai `r16` (nhắc "đặt hàng" → route thừa `order`) | 2026-11-11 |
 
 **Quy ước ngày:** agent tính hạn đổi trả theo `AS_OF_DATE` (eval: `2026-11-08`), không theo ngày hệ thống.
