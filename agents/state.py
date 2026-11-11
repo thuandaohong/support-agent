@@ -21,7 +21,12 @@ class SupportState(TypedDict, total=False):
 
     # specialist ghi (Day 8) — mỗi node một key
     policy_hits: list[dict]   # policy_node: kết quả search_policy
-    order_data: dict | None   # order_node: kết quả get_order
+    order_data: dict | None   # order_node: kết quả get_order (+ days_since_order do code tính)
+    # order_node: kết quả tra đơn, để writer biết trả lời kiểu gì:
+    #   "found"     — có đơn và đúng là của khách
+    #   "not_found" — không có đơn HOẶC đơn của người khác (gộp chung, không lộ mã có thật)
+    #   "no_id"     — câu hỏi không có mã đơn → không tra được
+    order_lookup: str
 
     # writer ghi (Day 8)
     answer: str

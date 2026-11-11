@@ -21,7 +21,7 @@ Ví dụ: *"Đơn #1003 có đổi trả được không?"* → tra hạn đổi
 | `eval/` | Golden set + eval harness |
 | `infra/` | Terraform |
 | `sample-data/` | Dữ liệu synthetic — xem [sample-data/README.md](sample-data/README.md) |
-| `docs/` | Sơ đồ, ghi chú |
+| `docs/` | Sơ đồ graph, ghi chú |
 
 ## Cài đặt
 
@@ -37,6 +37,8 @@ cp .env.example .env   # điền POLICY_KB_ID
 ```bash
 python tools/search_policy.py "Gói Premium đổi trả bao nhiêu ngày?"
 python tools/get_order.py 1003 C003          # customer_id bắt buộc: đơn người khác → không thấy
+python -m agents.graph "Đơn #1003 còn đổi trả được không?" --customer C003 -v   # chạy cả graph
+python -m agents.try_graph                   # 14 tình huống biên (eval/graph_cases.jsonl)
 python -m agents.try_supervisor              # routing accuracy trên eval/routing_cases.jsonl
 python -m pytest -q tests                    # test không gọi AWS
 ```
@@ -44,5 +46,8 @@ python -m pytest -q tests                    # test không gọi AWS
 | Đo | Kết quả | Ngày |
 |---|---|---|
 | Routing accuracy (Nova Lite, 16 câu) | 15/16 = 94% — sai `r16` (nhắc "đặt hàng" → route thừa `order`) | 2026-11-11 |
+| Graph end-to-end (14 tình huống, chạy 2 lần) | route + order_lookup 14/14; kết luận đổi trả/bảo hành 14/14 cả 2 lần | 2026-11-11 |
+
+Sơ đồ graph: [docs/graph.md](docs/graph.md).
 
 **Quy ước ngày:** agent tính hạn đổi trả theo `AS_OF_DATE` (eval: `2026-11-08`), không theo ngày hệ thống.
