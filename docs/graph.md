@@ -34,9 +34,11 @@ graph TD;
 | `supervisor` | Có (Nova Lite, temp 0) | `question` | `route`, `order_id` |
 | `policy` | Không | `question` | `policy_hits` |
 | `order` | Không | `order_id`, `customer_id`, `as_of_date` | `order_data` (+ `return_check`, `warranty_check` từ `agents/rules.py`), `order_lookup` |
-| `writer` | Có (Nova Lite, temp 0.2) — trừ câu ngoài phạm vi | tất cả ở trên | `answer`, `sources` |
+| `writer` | Có (Nova Lite, temp 0.2) — trừ 2 ca trả câu cố định: route rỗng, và `no_id` không có đoạn chính sách | tất cả ở trên | `answer`, `sources` |
 
-Mọi node trả `steps: 1`, reducer cộng dồn: cả hai nhánh = 4, một nhánh = 3, ngoài phạm vi = 2.
+Mọi node trả `steps: 1`, reducer cộng dồn: cả hai nhánh = 4, một nhánh = 3, không cần nguồn (chào hỏi / lạc đề) = 2.
+
+Vượt `RECURSION_LIMIT` (phanh cứng của LangGraph) → `ask()` bắt `GraphRecursionError`, trả câu "hệ thống đang bận" kèm `error: "recursion_limit"` thay vì ném exception.
 
 ## Sequence diagram — một câu hỏi chạy qua những hàm nào
 
@@ -76,9 +78,9 @@ sequenceDiagram
     S-->>LG: {route, order_id: "1003", steps: 1}
     LG->>LG: route_after_supervisor(state)<br/>→ route, hoặc ["writer"] nếu route rỗng
 
-    alt route rỗng (ngoài phạm vi / prompt injection)
+    alt route rỗng (chào hỏi / lạc đề / prompt injection)
         LG->>W: writer_node(state)
-        W-->>LG: {answer: _OUT_OF_SCOPE[lang], sources: [], steps: 1}<br/>— KHÔNG gọi LLM
+        W-->>LG: {answer: _WELCOME[lang], sources: [], steps: 1}<br/>— KHÔNG gọi LLM
     else route có "policy" và/hoặc "order"
         Note over LG,O: Superstep 2 — fan-out: các nhánh trong route chạy SONG SONG
         par route có "policy"
@@ -113,6 +115,7 @@ sequenceDiagram
 
         Note over LG,W: Superstep 3 — fan-in: writer chạy ĐÚNG 1 LẦN, sau khi mọi nhánh xong
         LG->>W: writer_node(state đã gộp)
+        Note over W: order_lookup = no_id VÀ không có policy_hits<br/>→ trả _ASK_ORDER_ID[lang] ngay, KHÔNG gọi LLM (Day 56)
         W->>W: lang = question_language(question)<br/>message = build_writer_input(state)<br/>(TODAY, POLICY EXCERPTS, ORDER LOOKUP/ORDER, <question>, lệnh ngôn ngữ ở CUỐI)
         W->>L: converse_text(WRITER_MODEL_ID, WRITER_PROMPT, message, temperature=0.2)
         L->>BR: converse()
@@ -181,7 +184,7 @@ flowchart TD
     SUP -- "ROUTER_PROMPT + &lt;question&gt;" --> BR
     BR -- "'{&quot;route&quot;: [...]}'" --> SUP
     SUP -- "route = [policy, order]<br/>order_id = regex(question)" --> POL & ORD
-    SUP -- "route = [] (ngoài phạm vi)" --> WRI
+    SUP -- "route = [] (chào hỏi / lạc đề)" --> WRI
 
     POL -- "question" --> KB
     KB -- "retrievalResults" --> POL
@@ -219,8 +222,8 @@ flowchart TD
 | g01 | C003 hỏi đơn 1003 (của C003) | `get_order`: `Item.customer_id == "C003"` | `found` → writer có ORDER JSON + 2 check |
 | g07 | **C020** hỏi đơn 1036 (của C035) | `get_order`: `"C035" != "C020"` → `None` | `not_found` → writer chỉ nói "không tìm thấy", không có ORDER JSON nào để lộ |
 | g08 | C003 hỏi đơn 9999 | DynamoDB không có Item → `None` | `not_found` — **giống hệt g07**, kẻ dò không phân biệt được |
-| câu không mã đơn | "đơn của tôi đâu?" | `extract_order_id` → `None`, order_node không gọi DynamoDB | `no_id` → writer hỏi lại mã |
-| câu ngoài phạm vi | "kể chuyện cười" | supervisor → `route = []` | đi thẳng writer → câu từ chối cố định, Bedrock không được gọi lần 2, `steps = 2` |
+| câu không mã đơn | "đơn của tôi đâu?" | `extract_order_id` → `None`, order_node không gọi DynamoDB | `no_id` → không có đoạn chính sách → câu cố định xin mã, không gọi LLM |
+| câu chào / lạc đề | "Xin chào", "kể chuyện cười" | supervisor → `route = []` | đi thẳng writer → câu chào cố định, Bedrock không được gọi lần 2, `steps = 2` |
 
 Dữ liệu **không bao giờ đi qua LLM**: `customer_id` (đi thẳng ask → get_order) và các con số
 eligible/thời hạn (rules.py tính, LLM chỉ đọc lại). Đó là hai thứ quyết định quyền truy cập và lời

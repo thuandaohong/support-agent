@@ -85,13 +85,25 @@ _LANG_INSTRUCTION = {"vi": "Answer in Vietnamese (trả lời bằng tiếng Vi�
                      "en": "Answer in English."}
 _LANG_NAME = {"vi": "Vietnamese", "en": "English"}
 
-# Câu ngoài phạm vi (route = []) → trả câu cố định, KHÔNG gọi LLM: rẻ hơn, luôn giống nhau, và
-# câu prompt injection không có cơ hội tác động lên model nào cả.
-_OUT_OF_SCOPE = {
-    "vi": "Xin lỗi, mình chỉ hỗ trợ các câu hỏi về chính sách cửa hàng (đổi trả, bảo hành, gói "
-          "dịch vụ, vận chuyển) và đơn hàng của bạn.",
-    "en": "Sorry, I can only help with questions about our store policies (returns, warranty, "
-          "service plans, shipping) and your orders.",
+# Câu không cần nguồn nào (route = []): chào hỏi, cảm ơn, lạc đề, prompt injection → trả câu cố
+# định, KHÔNG gọi LLM: rẻ hơn, luôn giống nhau, và câu injection không chạm tới model lần thứ hai.
+# Day 56: bản cũ mở đầu bằng "Xin lỗi, mình chỉ hỗ trợ…" → khách chào "Xin chào" cũng bị từ chối.
+# Giờ là câu CHÀO + giới thiệu phạm vi + mời hỏi: hợp với lời chào, mà câu lạc đề ("viết hàm
+# Python") đọc vẫn hợp lý (không giúp, chỉ hướng về việc bot làm được). Không cần phân biệt chào
+# với lạc đề → không thêm nhãn cho router, không thêm regex dễ sót.
+_WELCOME = {
+    "vi": "Chào bạn! Mình hỗ trợ các câu hỏi về chính sách cửa hàng (đổi trả, bảo hành, gói dịch "
+          "vụ, vận chuyển) và đơn hàng của bạn. Bạn cần mình giúp gì ạ?",
+    "en": "Hi! I can help with questions about our store policies (returns, warranty, service "
+          "plans, shipping) and your orders. What can I help you with?",
+}
+
+# Hỏi về đơn mà không có mã đơn, và không có đoạn chính sách nào → việc duy nhất là xin mã.
+# Day 56 đo thật: để LLM viết thì nó xin mã NHƯNG bịa thêm "Chính sách bảo hành và hoàn trả sẽ
+# được áp dụng dựa trên…" dù không có dữ liệu chính sách nào (trái rule 6) → dùng câu cố định.
+_ASK_ORDER_ID = {
+    "vi": "Bạn vui lòng cho mình xin mã đơn hàng (ví dụ #1003) để mình tra giúp nhé.",
+    "en": "Could you share your order number (for example #1003) so I can look it up?",
 }
 
 # Prompt viết tiếng Anh (Day 47: prompt tiếng Việt kéo câu trả lời về tiếng Việt).
@@ -99,7 +111,8 @@ _OUT_OF_SCOPE = {
 #   1–2: chống bịa (chỉ dùng DATA);  3–4: kết luận đổi trả/bảo hành do CODE tính, LLM không được
 #        tự tính lại hay nói ngược (Day 55: để LLM tự áp luật thì lúc đúng lúc sai);
 #   5–6: ba kiểu order_lookup (no_id: trả lời phần chính sách TRƯỚC — vì router đôi khi route thừa
-#        "order" cho câu chỉ hỏi chính sách, lỗi r16 Day 54, thì khách vẫn có câu trả lời);
+#        "order" cho câu chỉ hỏi chính sách, lỗi r16 Day 54, thì khách vẫn có câu trả lời;
+#        no_id mà KHÔNG có đoạn chính sách thì writer_node trả câu cố định, không tới prompt này);
 #   7: không lộ chi tiết nội bộ;  8: ngôn ngữ do code ra lệnh ở cuối.
 WRITER_PROMPT = """You are a customer-support assistant for an online store.
 Answer the customer's question using ONLY the DATA in the message.
@@ -118,7 +131,7 @@ Rules:
    why and do not reveal anything else.
 6. ORDER LOOKUP = no_id (the question contains no order id): first answer everything you can from
    the POLICY EXCERPTS. Then, only if the question is about one specific order of the customer,
-   add one short sentence asking for the order id. With no POLICY EXCERPTS, just ask for the id.
+   add one short sentence asking for the order id.
 7. Be concise (2-4 sentences) and friendly. Start directly with the answer: no greetings, no
    sign-offs. Never show internal terms or codes ("excerpt", "lookup", "check", "eligible",
    reason codes such as not_delivered_yet). order_date is the date the order was PLACED.
@@ -190,9 +203,14 @@ def writer_node(state: SupportState) -> dict:
     """Ghép dữ liệu từ các nhánh đã chạy thành câu trả lời + danh sách nguồn."""
     lang = question_language(state["question"])
 
-    # route rỗng = supervisor xác định câu ngoài phạm vi → từ chối bằng câu cố định
+    # Hai ca KHÔNG có dữ liệu gì để diễn đạt → câu cố định, không gọi LLM (không bịa được, $0).
+    # 1) route rỗng = supervisor xác định không cần nguồn nào (chào hỏi / lạc đề / injection)
     if not state.get("route"):
-        return {"answer": _OUT_OF_SCOPE[lang], "sources": [], "steps": 1}
+        return {"answer": _WELCOME[lang], "sources": [], "steps": 1}
+    # 2) hỏi về đơn nhưng thiếu mã, và không có đoạn chính sách → chỉ còn việc xin mã.
+    #    Có đoạn chính sách (vd router route thừa "order", ca r16) thì vẫn để LLM trả lời phần đó.
+    if state.get("order_lookup") == "no_id" and not state.get("policy_hits"):
+        return {"answer": _ASK_ORDER_ID[lang], "sources": [], "steps": 1}
 
     t0 = time.perf_counter()
     message = build_writer_input(state)

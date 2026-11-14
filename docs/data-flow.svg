@@ -80,7 +80,7 @@
 <text x="1432" y="1039.8" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">warranty_check</text>
 <rect x="640" y="1210" width="480" height="80" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="2.5"/>
 <text x="880.0" y="1239.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">writer_node</text>
-<text x="880.0" y="1261.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">LLM viết câu · code ghép sources</text>
+<text x="880.0" y="1261.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">LLM viết câu · 2 ca câu cố định · code ghép sources</text>
 <path d="M600,980 L700,1210" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
 <text x="640" y="1080.2" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">policy_hits:</text>
 <text x="640" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">[{text, source, score}] × 3</text>
@@ -89,7 +89,7 @@
 <text x="1090" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">(found / not_found / no_id)</text>
 <path d="M860,760 L860,1210" fill="none" stroke="#374151" stroke-width="2.2" stroke-dasharray="9 7" marker-end="url(#arr)"/>
 <text x="850" y="1080.2" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#be123c" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">route = []</text>
-<text x="850" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#be123c" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">(ngoài phạm vi)</text>
+<text x="850" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#be123c" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">(chào hỏi / lạc đề)</text>
 <path d="M1640,1199 A160.0,14 0 0 0 1960,1199 L1960,1301 A160.0,14 0 0 1 1640,1301 Z" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
 <ellipse cx="1800.0" cy="1199" rx="160.0" ry="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
 <text x="1800.0" y="1247.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">Bedrock Runtime</text>

@@ -15,9 +15,10 @@ import os
 from datetime import date
 
 from dotenv import load_dotenv
+from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 
-from agents.nodes import order_node, policy_node, writer_node
+from agents.nodes import order_node, policy_node, question_language, writer_node
 from agents.state import SupportState
 from agents.supervisor import supervisor_node
 
@@ -26,9 +27,18 @@ load_dotenv()
 # biến này trong .env thì dùng ngày thật (demo).
 AS_OF_DATE = os.environ.get("AS_OF_DATE") or None
 
-# Chặn graph chạy quá số bước (phòng vòng lặp đốt tiền). Graph này không có vòng lặp, chạy tối đa
-# 4 node, nên 10 là dư — chủ yếu là lưới an toàn khi Day sau thêm cạnh quay lui.
+log = logging.getLogger(__name__)
+
+# Chặn graph chạy quá số SUPERSTEP (phòng vòng lặp đốt tiền). Graph này không có vòng lặp, tối đa
+# 3 superstep (supervisor → policy ∥ order → writer), nên 10 là dư — lưới an toàn khi Day sau thêm
+# cạnh quay lui. Vượt giới hạn: LangGraph ném GraphRecursionError → ask() bắt, trả câu lịch sự.
 RECURSION_LIMIT = 10
+
+# Câu trả khi graph bị chặn giữa chừng — khách vẫn nhận được câu trả lời thay vì lỗi 500
+_BUSY = {
+    "vi": "Xin lỗi, hệ thống đang bận nên chưa trả lời được. Bạn vui lòng thử lại sau ít phút nhé.",
+    "en": "Sorry, the system is busy and couldn't answer right now. Please try again in a few minutes.",
+}
 
 
 def route_after_supervisor(state: SupportState) -> list[str]:
@@ -84,7 +94,16 @@ def ask(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
         "as_of_date": as_of_date or AS_OF_DATE or date.today().isoformat(),
         "steps": 0,   # điểm xuất phát cho reducer operator.add
     }
-    return graph.invoke(initial, config={"recursion_limit": RECURSION_LIMIT})
+    try:
+        return graph.invoke(initial, config={"recursion_limit": RECURSION_LIMIT})
+    except GraphRecursionError:
+        # Hai tầng phanh (Day 56): recursion_limit là phanh CỨNG của LangGraph — ném exception.
+        # Bắt ở đây để thoát LỊCH SỰ: khách nhận câu "hệ thống bận", log cảnh báo để mình biết
+        # có vòng lặp bất thường (không log nội dung câu hỏi). Tầng mềm — conditional edge kiểm
+        # `steps < N` để tự thoát kèm câu trả lời — chỉ cần khi graph có vòng lặp.
+        log.warning("graph stopped: recursion_limit=%d exceeded", RECURSION_LIMIT)
+        return {**initial, "answer": _BUSY[question_language(question)], "sources": [],
+                "error": "recursion_limit"}
 
 
 def main():

@@ -71,18 +71,44 @@ def test_policy_only_skips_order_node(fake_aws):
     assert "ORDER LOOKUP" not in fake_aws["writer_input"]
 
 
-def test_out_of_scope_still_reaches_writer_without_llm(fake_aws):
+@pytest.mark.parametrize("question", ["Xin chào", "Cảm ơn bạn nhé", "Viết hàm Python sắp xếp list"])
+def test_no_source_route_reaches_writer_without_llm(fake_aws, question):
     fake_aws["router_reply"] = '{"route": []}'
-    out = run("Viết hàm Python sắp xếp list")
+    out = run(question)
     assert out["steps"] == 2                           # supervisor + writer
-    assert out["answer"].startswith("Xin lỗi")         # câu từ chối cố định, tiếng Việt
+    assert out["answer"].startswith("Chào bạn!")       # câu chào cố định (Day 56), tiếng Việt
     assert fake_aws["writer"] == 0 and fake_aws["search"] == 0   # không gọi LLM, không tra KB
     assert out["sources"] == []
 
 
-def test_out_of_scope_refusal_follows_question_language(fake_aws):
+def test_no_source_reply_follows_question_language(fake_aws):
     fake_aws["router_reply"] = '{"route": []}'
-    assert run("Write a Python sort function").get("answer").startswith("Sorry")
+    assert run("hi").get("answer").startswith("Hi!")
+
+
+def test_no_id_without_policy_asks_for_order_id_without_llm(fake_aws):
+    fake_aws["router_reply"] = '{"route": ["order"]}'
+    out = run("Tôi muốn hỏi về đơn hàng")
+    assert out["order_lookup"] == "no_id" and out["steps"] == 3
+    assert out["answer"].startswith("Bạn vui lòng cho mình xin mã đơn hàng")
+    assert fake_aws["writer"] == 0                     # câu cố định, LLM không có cơ hội bịa
+    assert run("Where is my order?").get("answer").startswith("Could you share your order number")
+
+
+def test_no_id_with_policy_still_uses_llm(fake_aws):
+    # router route thừa "order" cho câu chỉ hỏi chính sách (ca r16) → vẫn có đoạn chính sách để trả lời
+    run("Tôi đặt hàng năm 2026, gói Pro đổi trả mấy ngày?")
+    assert fake_aws["writer"] == 1
+    assert "ORDER LOOKUP: no_id" in fake_aws["writer_input"]
+
+
+def test_recursion_limit_returns_polite_answer(fake_aws, monkeypatch):
+    # ép phanh cứng xuống 2 superstep: graph cần 3 (supervisor → policy ∥ order → writer)
+    monkeypatch.setattr(graph_mod, "RECURSION_LIMIT", 2)
+    out = run("Đơn #1003 còn đổi trả được không?")
+    assert out["error"] == "recursion_limit"
+    assert out["answer"].startswith("Xin lỗi, hệ thống đang bận")   # không ném exception ra ngoài
+    assert fake_aws["writer"] == 0                     # bị chặn trước khi tới writer
 
 
 # ─── order_node: 3 trạng thái ───
