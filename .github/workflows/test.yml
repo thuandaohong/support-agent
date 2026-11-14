@@ -1,0 +1,38 @@
+# CI tầng đáy kim tự tháp test (Day 57): ruff + pytest, KHÔNG gọi AWS.
+# Không cần credentials/secret nào: test thay AWS bằng hàm giả, tests/conftest.py đặt env giả,
+# tests/test_integration.py tự skip khi không có RUN_INTEGRATION=1.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read   # chỉ đọc code — workflow này không cần quyền nào khác
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true   # push liên tiếp vào cùng nhánh → huỷ lần chạy cũ
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"   # giống .venv local
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Unit tests (không gọi AWS)
+        run: python -m pytest -q -rs

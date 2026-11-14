@@ -1,5 +1,7 @@
-# Cần Python >= 3.10 (LangGraph, AgentCore SDK). Pin version khi bắt đầu code (Phase B).
-langgraph
-langchain-aws
-boto3
-python-dotenv
+# Python >= 3.10 (LangGraph, AgentCore SDK); đang chạy & CI dùng 3.14.
+# Pin đúng version đã chạy được (Day 57): container Phase D và CI build lần nào cũng ra cùng kết quả.
+# Nâng version = sửa ở đây + chạy lại pytest (+ RUN_INTEGRATION=1) trước khi merge.
+langgraph==1.2.20
+langchain-aws==1.9.3
+boto3==1.44.0
+python-dotenv==1.2.4
