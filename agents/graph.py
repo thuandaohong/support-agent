@@ -82,11 +82,30 @@ def build_graph():
 graph = build_graph()
 
 
+# Các trường ask() trả ra ngoài — HỢP ĐỒNG với người gọi (API Phase D, eval Phase E).
+#   answer, sources: hiển thị cho khách;  route, order_lookup: đo routing / tra đơn (eval);
+#   steps: theo dõi chi phí;  error: chỉ có khi graph bị chặn (vd "recursion_limit").
+# KHÔNG trả order_data (tên khách, số tiền, customer_id), policy_hits (nguyên văn tài liệu),
+# question... — đó là chi tiết nội bộ: lộ ra API là lộ dữ liệu, và người gọi sẽ phụ thuộc vào cấu
+# trúc State, đổi graph là vỡ người gọi.
+PUBLIC_FIELDS = ("answer", "sources", "route", "order_lookup", "steps", "error")
+
+
 def ask(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
-    """Chạy graph cho 1 câu hỏi, trả State cuối (answer, sources, route, order_lookup, steps...).
+    """CỬA VÀO DUY NHẤT của agent: 1 câu hỏi → dict công khai (xem PUBLIC_FIELDS).
 
     customer_id: phía gọi (API sau này) lấy từ danh tính đã đăng nhập, không từ câu hỏi.
     as_of_date: "hôm nay" dạng YYYY-MM-DD; None → AS_OF_DATE trong .env → ngày thật.
+    Trường nào không có trong lần chạy (vd route ["policy"] → không có order_lookup) thì vắng mặt.
+    """
+    state = run_graph(question, customer_id, as_of_date)
+    return {k: state[k] for k in PUBLIC_FIELDS if k in state}
+
+
+def run_graph(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
+    """Chạy graph, trả NGUYÊN State cuối (có order_data, policy_hits...) — cho debug và test.
+
+    Code gọi từ bên ngoài (API, eval) dùng ask(), không dùng hàm này.
     """
     initial = {
         "question": question,
@@ -116,7 +135,7 @@ def main():
     if args.verbose:
         logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 
-    out = ask(args.question, args.customer, args.as_of)
+    out = run_graph(args.question, args.customer, args.as_of)   # nguyên State để in ORDER khi debug
     print(f"ROUTE: {out.get('route')}   ORDER_LOOKUP: {out.get('order_lookup', '-')}   "
           f"STEPS: {out['steps']}")
     if out.get("order_data"):

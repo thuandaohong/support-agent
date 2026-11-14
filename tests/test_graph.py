@@ -48,7 +48,29 @@ def fake_aws(monkeypatch):
 
 
 def run(question, customer="C003"):
-    return graph_mod.ask(question, customer, as_of_date="2026-11-08")
+    """Nguyên State cuối — test nội bộ cần xem order_data, policy_hits..."""
+    return graph_mod.run_graph(question, customer, as_of_date="2026-11-08")
+
+
+# ─── hợp đồng công khai của ask() (Day 57) ───
+
+def test_ask_returns_only_public_fields(fake_aws):
+    out = graph_mod.ask("Đơn #1003 còn đổi trả được không?", "C003", as_of_date="2026-11-08")
+    assert set(out) == {"answer", "sources", "route", "order_lookup", "steps"}
+    # chi tiết nội bộ không lọt ra: tên khách / số tiền / customer_id nằm trong order_data
+    assert "order_data" not in out and "policy_hits" not in out and "customer_id" not in out
+
+
+def test_ask_omits_fields_of_nodes_that_did_not_run(fake_aws):
+    fake_aws["router_reply"] = '{"route": []}'
+    out = graph_mod.ask("Xin chào", "C003", as_of_date="2026-11-08")
+    assert set(out) == {"answer", "sources", "route", "steps"}   # order_node không chạy
+
+
+def test_ask_passes_error_through_when_graph_is_stopped(fake_aws, monkeypatch):
+    monkeypatch.setattr(graph_mod, "RECURSION_LIMIT", 2)
+    out = graph_mod.ask("Đơn #1003 còn đổi trả được không?", "C003", as_of_date="2026-11-08")
+    assert out["error"] == "recursion_limit" and "customer_id" not in out
 
 
 # ─── luồng graph ───
