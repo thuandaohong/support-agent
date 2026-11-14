@@ -148,6 +148,12 @@ Các điểm cần nhớ khi đọc sơ đồ:
 Sequence diagram ở trên cho biết **hàm nào gọi hàm nào**. Phần này cho biết **dữ liệu nào đi đâu,
 bị biến thành gì**. Hình chữ nhật = bước xử lý, hình trụ = nơi lưu dữ liệu, chữ trên mũi tên = dữ liệu.
 
+Bản ảnh khổ lớn (mở riêng để zoom): [data-flow.svg](data-flow.svg)
+
+![Data-flow try_graph](data-flow.svg)
+
+Bản Mermaid (cùng nội dung):
+
 ```mermaid
 flowchart TD
     JSONL[("eval/graph_cases.jsonl<br/>{id, question, customer_id,<br/>route, order_lookup, expect}")]

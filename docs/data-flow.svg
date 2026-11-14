@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1540" viewBox="0 0 2000 1540" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#374151"/></marker></defs>
+<rect width="2000" height="1540" fill="#ffffff"/>
+<text x="40" y="40.0" font-size="26" text-anchor="start" dominant-baseline="middle" font-weight="bold" fill="#111827">Data-flow: python -m agents.try_graph (support-agent, Day 55)</text>
+<text x="40" y="76.0" font-size="16" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#4b5563">Hình chữ nhật = bước xử lý · hình trụ = nơi lưu dữ liệu · chữ trên mũi tên = dữ liệu đi qua</text>
+<rect x="40" y="104" width="26" height="22" rx="4" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+<text x="74" y="115.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">Code</text>
+<rect x="146" y="104" width="26" height="22" rx="4" fill="#fdf2f8" stroke="#db2777" stroke-width="2"/>
+<text x="180" y="115.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">Có gọi LLM</text>
+<rect x="300" y="104" width="26" height="22" rx="4" fill="#fff7ed" stroke="#ea580c" stroke-width="2"/>
+<text x="334" y="115.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">Luật nghiệp vụ (code thuần)</text>
+<rect x="590" y="104" width="26" height="22" rx="4" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+<text x="624" y="115.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">AWS</text>
+<rect x="688" y="104" width="26" height="22" rx="4" fill="#fef9c3" stroke="#ca8a04" stroke-width="2"/>
+<text x="722" y="115.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">File eval</text>
+<path d="M580,184 A280.0,14 0 0 0 1140,184 L1140,276 A280.0,14 0 0 1 580,276 Z" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
+<ellipse cx="860.0" cy="184" rx="280.0" ry="14" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
+<text x="860.0" y="226.9" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">eval/graph_cases.jsonl</text>
+<text x="860.0" y="249.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">{id, question, customer_id, route, order_lookup, expect}</text>
+<rect x="660" y="340" width="400" height="80" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+<text x="860.0" y="368.9" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">try_graph.main()</text>
+<text x="860.0" y="391.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">đọc từng dòng · AS_OF_DATE = 2026-11-08</text>
+<rect x="660" y="480" width="400" height="80" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+<text x="860.0" y="508.9" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">graph.ask()</text>
+<text x="860.0" y="531.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">dựng State ban đầu</text>
+<path d="M860,290 L860,340" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="875" y="315.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">1 case</text>
+<path d="M860,420 L860,480" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="875" y="450.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">question, customer_id, as_of_date</text>
+<rect x="380" y="610" width="1160" height="700" rx="16" fill="#f9fafb" stroke="#9ca3af" stroke-width="2" stroke-dasharray="10 6"/>
+<text x="400" y="636.0" font-size="17" text-anchor="start" dominant-baseline="middle" font-weight="bold" fill="#4b5563">LangGraph: mọi node đọc / ghi qua SupportState</text>
+<rect x="700" y="670" width="320" height="90" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="2.5"/>
+<text x="860.0" y="704.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">supervisor_node</text>
+<text x="860.0" y="726.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">LLM: route · regex: order_id</text>
+<path d="M860,560 L860,670" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="875" y="615.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">{question, customer_id, as_of_date, steps: 0}</text>
+<path d="M1640,664 A160.0,14 0 0 0 1960,664 L1960,766 A160.0,14 0 0 1 1640,766 Z" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<ellipse cx="1800.0" cy="664" rx="160.0" ry="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<text x="1800.0" y="712.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">Bedrock Runtime</text>
+<text x="1800.0" y="734.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">Nova Lite (router)</text>
+<path d="M1020,695 L1640,695" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1330" y="678.0" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">ROUTER_PROMPT + &lt;question&gt;</text>
+<path d="M1640,740 L1020,740" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1330" y="760.0" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">&#x27;{&quot;route&quot;: [...]}&#x27;</text>
+<rect x="420" y="900" width="320" height="80" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+<text x="580.0" y="929.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">policy_node</text>
+<text x="580.0" y="951.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">không LLM</text>
+<rect x="1060" y="900" width="400" height="80" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+<text x="1260.0" y="929.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">order_node</text>
+<text x="1260.0" y="951.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">không LLM</text>
+<path d="M780,760 L600,900" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<path d="M960,760 L1180,900" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1090" y="810.2" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">route = [policy, order]</text>
+<text x="1090" y="829.8" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">order_id = regex(question)</text>
+<path d="M40,889 A120.0,14 0 0 0 280,889 L280,991 A120.0,14 0 0 1 40,991 Z" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<ellipse cx="160.0" cy="889" rx="120.0" ry="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<text x="160.0" y="937.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">Knowledge Base</text>
+<text x="160.0" y="959.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">6 file .md (S3)</text>
+<path d="M420,925 L280,925" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="350" y="908.0" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">question</text>
+<path d="M280,960 L420,960" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="350" y="980.0" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">retrievalResults</text>
+<path d="M1640,889 A160.0,14 0 0 0 1960,889 L1960,991 A160.0,14 0 0 1 1640,991 Z" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<ellipse cx="1800.0" cy="889" rx="160.0" ry="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<text x="1800.0" y="937.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">DynamoDB</text>
+<text x="1800.0" y="959.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">support-orders</text>
+<path d="M1460,925 L1640,925" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1550" y="908.0" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">Key = {order_id}</text>
+<path d="M1640,960 L1460,960" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1550" y="978.2" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">Item (có customer_id</text>
+<text x="1550" y="997.8" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">của chủ đơn)</text>
+<rect x="1160" y="1080" width="300" height="70" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="2.5"/>
+<text x="1310.0" y="1104.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">rules.py</text>
+<text x="1310.0" y="1126.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">check_return / check_warranty</text>
+<path d="M1200,980 L1200,1080" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1212" y="1010.2" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">order + as_of_date</text>
+<text x="1212" y="1029.8" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">(chỉ khi customer_id khớp)</text>
+<path d="M1420,1080 L1420,980" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1432" y="1020.2" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">return_check</text>
+<text x="1432" y="1039.8" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">warranty_check</text>
+<rect x="640" y="1210" width="480" height="80" rx="10" fill="#fdf2f8" stroke="#db2777" stroke-width="2.5"/>
+<text x="880.0" y="1239.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">writer_node</text>
+<text x="880.0" y="1261.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">LLM viết câu · code ghép sources</text>
+<path d="M600,980 L700,1210" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="640" y="1080.2" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">policy_hits:</text>
+<text x="640" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">[{text, source, score}] × 3</text>
+<path d="M1100,980 L1100,1210" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1090" y="1080.2" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">order_data, order_lookup</text>
+<text x="1090" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">(found / not_found / no_id)</text>
+<path d="M860,760 L860,1210" fill="none" stroke="#374151" stroke-width="2.2" stroke-dasharray="9 7" marker-end="url(#arr)"/>
+<text x="850" y="1080.2" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#be123c" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">route = []</text>
+<text x="850" y="1099.8" font-size="15" text-anchor="end" dominant-baseline="middle" font-weight="normal" fill="#be123c" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">(ngoài phạm vi)</text>
+<path d="M1640,1199 A160.0,14 0 0 0 1960,1199 L1960,1301 A160.0,14 0 0 1 1640,1301 Z" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<ellipse cx="1800.0" cy="1199" rx="160.0" ry="14" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+<text x="1800.0" y="1247.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">Bedrock Runtime</text>
+<text x="1800.0" y="1269.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">Nova Lite (writer)</text>
+<path d="M1120,1230 L1640,1230" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1380" y="1184.2" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">WRITER_PROMPT + TODAY + EXCERPTS</text>
+<text x="1380" y="1203.8" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">+ ORDER JSON + &lt;question&gt; + lệnh ngôn ngữ</text>
+<path d="M1640,1270 L1120,1270" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="1380" y="1290.0" font-size="15" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">câu trả lời</text>
+<rect x="560" y="1370" width="600" height="120" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
+<text x="860.0" y="1419.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">try_graph: chấm điểm + in ra</text>
+<text x="860.0" y="1441.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">so route, order_lookup với file · in answer + expect để so bằng mắt</text>
+<path d="M880,1290 L880,1370" fill="none" stroke="#374151" stroke-width="2.2" marker-end="url(#arr)"/>
+<text x="895" y="1330.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#1f2937" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">answer, sources, steps = 4</text>
+<path d="M660,380 L15,380 L15,1430 L560,1430" fill="none" stroke="#374151" stroke-width="2.2" stroke-dasharray="9 7" marker-end="url(#arr)"/>
+<text x="30" y="1460.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#6b7280" stroke="#ffffff" stroke-width="6" paint-order="stroke" stroke-linejoin="round">giữ lại route, order_lookup, expect của case để so ở cuối</text>
+<text x="1230" y="1400.0" font-size="16" text-anchor="start" dominant-baseline="middle" font-weight="bold" fill="#be123c">Không bao giờ đi qua LLM:</text>
+<text x="1230" y="1430.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">• customer_id: ask() → get_order (kiểm quyền)</text>
+<text x="1230" y="1456.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">• eligible / thời hạn: rules.py tính, LLM chỉ đọc lại</text>
+</svg>
