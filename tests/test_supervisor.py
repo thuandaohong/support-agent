@@ -11,6 +11,10 @@ from agents.supervisor import extract_order_id, parse_route
     ("Can I return order #1019?", "1019"),
     ("order no. 1050 status", "1050"),
     ("mã đơn # 9999", "9999"),
+    ("mã 1003 đổi trả được không", "1003"),              # "mã" đứng một mình (Day 55)
+    ("Mã số 1003", "1003"),
+    ("mã đơn hàng 1019 tới chưa", "1019"),
+    ("Có mã giảm giá 1234 không?", None),                 # mã giảm giá ≠ mã đơn
     ("Tôi đặt hàng năm 2026, gói Pro 30 ngày", None),   # số khác không phải mã đơn
     ("Đơn của tôi bao giờ tới?", None),
     ("Gói Premium đổi trả mấy ngày?", None),
