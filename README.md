@@ -108,7 +108,7 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | Graph end-to-end (14 tình huống, chạy 2 lần) | route + order_lookup 14/14; kết luận đổi trả/bảo hành 14/14 cả 2 lần | 2026-11-11 |
 | Graph end-to-end (18 tình huống, thêm chào hỏi / thiếu mã) | route + order_lookup 18/18 | 2026-11-14 |
 | Test | 69 unit pass (0.4 s) · 5 integration pass (7 s) | 2026-11-14 |
-| Container | image arm64 362 MB (bỏ `langchain-aws` không dùng: 456 → 362); `/ping` + 4 ca `/invocations` đúng trong container | 2026-11-15 |
+| Container | image arm64 362 MB (bỏ `langchain-aws` không dùng: 456 → 362); `/ping` + 4 ca `/invocations` đúng trong container; ECR scan HIGH 4 → 2 (glibc chưa có bản vá) | 2026-11-15 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
 
