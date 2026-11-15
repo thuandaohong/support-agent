@@ -12,3 +12,6 @@ dist/
 
 # Day 59 — biến thật cho infra/runtime/*.sh (chỉ commit runtime.env.example)
 infra/runtime/runtime.env
+
+# Day 60 — biến thật cho infra/gateway/*.sh (chỉ commit gateway.env.example)
+infra/gateway/gateway.env
