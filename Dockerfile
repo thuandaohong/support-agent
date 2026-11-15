@@ -15,6 +15,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Vá gói OS của base image (Day 58: ECR scan thấy 4 CVE HIGH ở zlib + glibc của Debian, zlib đã có
+# bản vá trong stable-security). Base image chỉ được build lại định kỳ → tự upgrade mỗi lần build.
+# Xoá apt lists để không phình image.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
+
 # Thư viện TRƯỚC, code SAU: Docker cache theo layer — sửa code mà requirements.txt không đổi thì
 # tái dùng layer cài thư viện, build lại vài giây thay vì cài lại từ đầu.
 COPY requirements.txt .
