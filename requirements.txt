@@ -2,6 +2,8 @@
 # Pin đúng version đã chạy được (Day 57): container Phase D và CI build lần nào cũng ra cùng kết quả.
 # Nâng version = sửa ở đây + chạy lại pytest (+ RUN_INTEGRATION=1) trước khi merge.
 langgraph==1.2.20
-langchain-aws==1.9.3
 boto3==1.44.0
 python-dotenv==1.2.4
+# Day 58 — cửa HTTP cho AgentCore Runtime (serve.py)
+fastapi==0.163.0
+uvicorn==0.54.0

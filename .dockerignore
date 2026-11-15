@@ -1,0 +1,20 @@
+# Image chỉ chứa CODE chạy agent. Cấu hình + bí mật tiêm lúc chạy (env / IAM role của Runtime).
+# Danh sách trắng ở Dockerfile (COPY từng thư mục) là lớp chặn chính; file này là lớp thứ hai và
+# giữ build context nhỏ (không gửi .venv vài trăm MB cho Docker mỗi lần build).
+.env
+.env.*
+!.env.example
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ruff_cache
+tests
+eval
+sample-data
+scripts
+docs
+infra
+README.md
