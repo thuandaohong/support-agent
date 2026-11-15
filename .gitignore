@@ -9,3 +9,6 @@ node_modules/
 dist/
 # sample-data/orders.csv ĐƯỢC commit: dữ liệu bịa hoàn toàn (không PII), golden set + seed DynamoDB
 # + CI cần đúng bộ dữ liệu này để chạy lặp lại được
+
+# Day 59 — biến thật cho infra/runtime/*.sh (chỉ commit runtime.env.example)
+infra/runtime/runtime.env
