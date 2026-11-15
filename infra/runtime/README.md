@@ -16,6 +16,7 @@ cp infra/runtime/runtime.env.example infra/runtime/runtime.env   # điền KB_ID
 ./infra/runtime/02-create-runtime.sh     # tạo Runtime từ image ECR, chờ READY
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003
 ./infra/runtime/04-logs.sh 15m           # log CloudWatch
+./infra/runtime/07-log-retention.sh      # giữ log 14 ngày (sau lần invoke đầu)
 python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
 ```
 
@@ -31,6 +32,7 @@ python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
 | `04-logs.sh` | Tail log CloudWatch của Runtime |
 | `05-update-image.sh` | Đổi image / cấu hình (update thay TOÀN BỘ cấu hình → gửi lại đủ) |
 | `06-stop-session.sh` | Dừng 1 session ngay, không chờ idle timeout |
+| `07-log-retention.sh` | Đặt thời hạn giữ log (`LOG_RETENTION_DAYS`, mặc định 14). Log group mặc định **không bao giờ hết hạn** — chạy sau lần invoke đầu |
 | `99-destroy.sh` | Xoá Runtime + role (bắt gõ lại tên để xác nhận). Không đụng ECR / DynamoDB / KB |
 
 ## Permissions (least privilege)
