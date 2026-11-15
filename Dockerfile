@@ -1,6 +1,8 @@
 # Image cho AgentCore Runtime (Day 58). Runtime BẮT BUỘC linux/arm64 (docs: runtime-http-protocol-
 # contract) — build amd64 thì lên cloud lỗi "exec format error". Mac Apple Silicon build arm64 sẵn.
-#   docker build --platform linux/arm64 -t support-agent .
+#   docker build --platform linux/arm64 --provenance=false --sbom=false -t support-agent .
+# --provenance/--sbom=false: đẩy lên ECR đúng 1 manifest (mặc định BuildKit đẩy image index + manifest
+# attestation không tag → ECR basic scan bỏ qua, lifecycle "xoá untagged" có thể xoá mất manifest con).
 # Không ghi --platform cố định ở FROM (Docker cảnh báo) — truyền ở lệnh build như trên.
 # Python 3.14 = đúng bản requirements đã pin + test (local, CI). Đổi bản = chạy thư viện chưa test.
 FROM python:3.14-slim
