@@ -10,6 +10,8 @@ Ví dụ: *"Đơn #1003 có đổi trả được không?"* → tra hạn đổi
 
 ## Kiến trúc
 
+Sơ đồ kiến trúc (mục tiêu Phase D + hiện trạng): [docs/architecture.svg](docs/architecture.svg)
+
 Đã chạy ở local (hết Phase C):
 
 ```
