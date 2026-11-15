@@ -1,0 +1,18 @@
+{
+  "name": "get_order",
+  "description": "Tra một đơn hàng của khách đang chat theo mã đơn (3–6 chữ số, ví dụ 1003). Trả về found=true kèm trạng thái giao hàng, gói dịch vụ, sản phẩm, ngày đặt, số tiền. Đơn không tồn tại hoặc không thuộc khách này đều trả found=false.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "order_id": {
+        "type": "string",
+        "description": "Mã đơn hàng 3–6 chữ số, ví dụ 1003"
+      },
+      "customer_id": {
+        "type": "string",
+        "description": "Mã khách đã xác thực, ví dụ C003. Do hệ thống điền từ danh tính đăng nhập, không lấy từ câu hỏi"
+      }
+    },
+    "required": ["order_id", "customer_id"]
+  }
+}
