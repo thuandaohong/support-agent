@@ -10,6 +10,8 @@ Ví dụ: *"Đơn #1003 có đổi trả được không?"* → tra hạn đổi
 
 ## Kiến trúc
 
+Sơ đồ kiến trúc (mục tiêu Phase D + hiện trạng): [docs/architecture.svg](docs/architecture.svg)
+
 Đã chạy ở local (hết Phase C):
 
 ```
@@ -61,6 +63,36 @@ python -m agents.try_graph                   # 18 tình huống biên (eval/grap
 python -m agents.try_supervisor              # routing accuracy trên eval/routing_cases.jsonl
 ```
 
+## Container (AgentCore Runtime)
+
+`serve.py` bọc `ask()` theo hợp đồng Runtime: `GET /ping` → `{"status":"Healthy"}`,
+`POST /invocations` `{"question", "customer_id"}` → hợp đồng công khai của `ask()`. Cổng 8080, **ARM64**.
+
+```bash
+# build — Runtime BẮT BUỘC arm64; --provenance/--sbom=false → 1 manifest (ECR scan + lifecycle chạy đúng)
+docker build --platform linux/arm64 --provenance=false --sbom=false -t support-agent:dev .
+
+# chạy thử: config từ .env, credentials TẠM (không mount ~/.aws)
+docker run --rm -p 8080:8080 --env-file .env \
+  --env-file <(aws configure export-credentials --format env-no-export) support-agent:dev
+curl localhost:8080/ping
+curl -X POST localhost:8080/invocations -H 'Content-Type: application/json' \
+  -d '{"question":"Đơn #1003 còn đổi trả được không?","customer_id":"C003"}'
+
+# đẩy lên ECR — tag = git SHA (repo để tag IMMUTABLE: không ghi đè được)
+REG=<account>.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REG
+docker tag support-agent:dev $REG/support-agent:$(git rev-parse --short HEAD)
+docker push $REG/support-agent:$(git rev-parse --short HEAD)
+```
+
+`customer_id` trong payload an toàn vì Runtime dùng xác thực IAM: chỉ backend (đã kiểm JWT của
+khách) gọi được, không mở cho trình duyệt. `as_of_date` không nhận từ payload (sửa được kết quả đổi trả).
+
+ECR repo `support-agent` tạo bằng CLI (Day 58): scan on push, tag IMMUTABLE, AES256, lifecycle
+(xoá image không tag sau 1 ngày, giữ 10 image gần nhất). **Cần `terraform import`** khi Terraform hoá
+(cùng với bảng DynamoDB `support-orders`).
+
 ## Test (kim tự tháp)
 
 | Tầng | Lệnh | Gọi AWS? | Khi nào chạy |
@@ -78,6 +110,7 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | Graph end-to-end (14 tình huống, chạy 2 lần) | route + order_lookup 14/14; kết luận đổi trả/bảo hành 14/14 cả 2 lần | 2026-11-11 |
 | Graph end-to-end (18 tình huống, thêm chào hỏi / thiếu mã) | route + order_lookup 18/18 | 2026-11-14 |
 | Test | 69 unit pass (0.4 s) · 5 integration pass (7 s) | 2026-11-14 |
+| Container | image arm64 362 MB (bỏ `langchain-aws` không dùng: 456 → 362); `/ping` + 4 ca `/invocations` đúng trong container; ECR scan HIGH 4 → 2 (glibc chưa có bản vá) | 2026-11-15 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
 
