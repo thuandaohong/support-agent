@@ -49,3 +49,41 @@ ensure_role() {
 lambda_arn() {
   aws lambda get-function --function-name "$LAMBDA_NAME" --query Configuration.FunctionArn --output text
 }
+
+role_arn() {
+  aws iam get-role --role-name "$1" --query Role.Arn --output text
+}
+
+# gateway_id → id của Gateway tên $GATEWAY_NAME, rỗng nếu chưa có (tra theo tên, không lưu file trạng thái)
+gateway_id() {
+  local id
+  id="$(aws bedrock-agentcore-control list-gateways \
+        --query "items[?name=='$GATEWAY_NAME'].gatewayId | [0]" --output text)"
+  [[ "$id" == "None" ]] && id=""
+  echo "$id"
+}
+
+# target_id <gateway_id> → id của target tên $TARGET_NAME, rỗng nếu chưa có
+target_id() {
+  local id
+  id="$(aws bedrock-agentcore-control list-gateway-targets --gateway-identifier "$1" \
+        --query "items[?name=='$TARGET_NAME'].targetId | [0]" --output text)"
+  [[ "$id" == "None" ]] && id=""
+  echo "$id"
+}
+
+# wait_status <mô tả> <lệnh get…> — chờ READY (tối đa ~5 phút), in statusReasons nếu hỏng
+wait_status() {
+  local what="$1" status; shift
+  for _ in $(seq 1 30); do
+    status="$("$@" --query status --output text)"
+    echo "  $what: $status"
+    case "$status" in
+      READY) return 0 ;;
+      *FAILED*|*UNSUCCESSFUL*) "$@" --query statusReasons --output text >&2; return 1 ;;
+    esac
+    sleep 10
+  done
+  echo "Quá 5 phút chưa READY" >&2
+  return 1
+}

@@ -9,7 +9,7 @@ TRUST="$HERE/lambda-trust-policy.json"
 PERMS="$(render "$HERE/lambda-permissions-policy.json.tpl")"
 python3 -m json.tool "$TRUST" >/dev/null && python3 -m json.tool "$PERMS" >/dev/null
 ensure_role "$LAMBDA_ROLE" "$TRUST" "$PERMS" "Lambda $LAMBDA_NAME (tool get_order sau AgentCore Gateway)"
-ROLE_ARN="$(aws iam get-role --role-name "$LAMBDA_ROLE" --query Role.Arn --output text)"
+ROLE_ARN="$(role_arn "$LAMBDA_ROLE")"
 
 LOG_GROUP="/aws/lambda/$LAMBDA_NAME"
 if [[ -z "$(aws logs describe-log-groups --log-group-name-prefix "$LOG_GROUP" \
