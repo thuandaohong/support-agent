@@ -7,6 +7,7 @@ import pytest
 
 import agents.graph as graph_mod
 from agents import nodes, supervisor
+from tools.mcp_client import GatewayError
 
 ORDERS = {  # "DynamoDB" giả: order_id → đơn
     "1003": {"order_id": "1003", "customer_id": "C003", "plan": "Premium",
@@ -196,3 +197,26 @@ def test_writer_input_puts_language_instruction_last():
                                      "policy_hits": HITS, "order_lookup": "not_found"})
     assert text.endswith("Answer in English.")   # lệnh ngôn ngữ nằm cuối
     assert "ORDER LOOKUP: not_found" in text and "ORDER: " not in text
+
+
+# ─── Day 60: hệ thống tra đơn hỏng (Gateway/Lambda) ───
+
+@pytest.fixture
+def broken_orders(fake_aws, monkeypatch):
+    def broken(order_id, customer_id):
+        raise GatewayError("unreachable")
+    monkeypatch.setattr(nodes, "get_order", broken)
+    return fake_aws
+
+
+def test_order_backend_failure_is_error_not_not_found(broken_orders):
+    out = nodes.order_node({"order_id": "1003", "customer_id": "C003", "as_of_date": "2026-11-08"})
+    assert out["order_lookup"] == "error" and out["order_data"] is None
+
+
+def test_order_backend_failure_answers_busy_without_llm(broken_orders):
+    out = graph_mod.ask("Đơn #1003 còn đổi trả được không?", "C003", as_of_date="2026-11-08")
+    assert out["order_lookup"] == "error" and out["error"] == "order_unavailable"
+    assert out["answer"].startswith("Xin lỗi, hệ thống tra cứu đơn hàng đang bận")
+    assert "không tìm thấy" not in out["answer"].lower()
+    assert out["sources"] == [] and broken_orders["writer"] == 0   # không gọi LLM writer

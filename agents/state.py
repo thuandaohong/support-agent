@@ -26,11 +26,13 @@ class SupportState(TypedDict, total=False):
     #   "found"     — có đơn và đúng là của khách
     #   "not_found" — không có đơn HOẶC đơn của người khác (gộp chung, không lộ mã có thật)
     #   "no_id"     — câu hỏi không có mã đơn → không tra được
+    #   "error"     — hệ thống tra đơn hỏng (Gateway/Lambda, Day 60) → báo bận, KHÔNG nói "không có"
     order_lookup: str
 
     # writer ghi (Day 8)
     answer: str
     sources: list[str]
+    error: str                # chỉ có khi không trả lời được bình thường (order_unavailable, recursion_limit)
 
     # mọi node cộng dồn: node trả {"steps": 1} → reducer cộng, không ghi đè
     steps: Annotated[int, operator.add]

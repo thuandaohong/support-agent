@@ -84,7 +84,8 @@ graph = build_graph()
 
 # Các trường ask() trả ra ngoài — HỢP ĐỒNG với người gọi (API Phase D, eval Phase E).
 #   answer, sources: hiển thị cho khách;  route, order_lookup: đo routing / tra đơn (eval);
-#   steps: theo dõi chi phí;  error: chỉ có khi graph bị chặn (vd "recursion_limit").
+#   steps: theo dõi chi phí;  error: chỉ có khi không trả lời bình thường được ("recursion_limit",
+#   "order_unavailable" — hệ thống tra đơn hỏng, Day 60).
 # KHÔNG trả order_data (tên khách, số tiền, customer_id), policy_hits (nguyên văn tài liệu),
 # question... — đó là chi tiết nội bộ: lộ ra API là lộ dữ liệu, và người gọi sẽ phụ thuộc vào cấu
 # trúc State, đổi graph là vỡ người gọi.

@@ -21,13 +21,34 @@ import time
 from agents.llm import converse_text
 from agents.rules import check_return, check_warranty
 from agents.state import SupportState
-from tools.get_order import get_order
+from tools.mcp_client import GatewayError
 from tools.search_policy import search_policy
 
 # Writer viết câu trả lời → có thể cần model tốt hơn router, nên cấu hình riêng
 WRITER_MODEL_ID = os.environ.get("WRITER_MODEL_ID", "amazon.nova-lite-v1:0")
 
 log = logging.getLogger(__name__)
+
+
+def _pick_get_order(backend: str):
+    """Chọn đường tra đơn (Day 60). Cả hai cùng hợp đồng: dict đơn, hoặc None.
+
+    direct  — boto3 đọc thẳng DynamoDB bằng role đang chạy (Day 51–59)
+    gateway — qua AgentCore Gateway → Lambda (tools/get_order_gateway.py); hỏng → GatewayError
+    Import trong hàm: chỉ nạp đường được chọn → đường gateway không cần ORDERS_TABLE, đường direct
+    không cần GATEWAY_URL. Sai tên → lỗi ngay lúc khởi động, không lặng lẽ chạy đường mặc định.
+    """
+    if backend == "direct":
+        from tools.get_order import get_order
+    elif backend == "gateway":
+        from tools.get_order_gateway import get_order
+    else:
+        raise ValueError(f"ORDER_BACKEND={backend!r} không hợp lệ (direct | gateway)")
+    return get_order
+
+
+ORDER_BACKEND = os.environ.get("ORDER_BACKEND", "direct")
+get_order = _pick_get_order(ORDER_BACKEND)
 
 
 # ─────────────────────────────── policy_node ───────────────────────────────
@@ -47,7 +68,8 @@ def policy_node(state: SupportState) -> dict:
 # ─────────────────────────────── order_node ────────────────────────────────
 
 def order_node(state: SupportState) -> dict:
-    """Tra 1 đơn hàng trong DynamoDB và ghi kết quả + trạng thái tra cứu (order_lookup).
+    """Tra 1 đơn hàng (DynamoDB trực tiếp hoặc qua Gateway — ORDER_BACKEND) và ghi kết quả +
+    trạng thái tra cứu (order_lookup).
 
     - order_id lấy từ State (supervisor đã rút bằng regex), không tự rút lại — tránh 2 nơi làm
       cùng việc rồi lệch nhau.
@@ -60,7 +82,13 @@ def order_node(state: SupportState) -> dict:
         # Writer sẽ hỏi lại mã đơn, hoặc bỏ qua nếu câu hỏi thực ra chỉ về chính sách.
         return {"order_data": None, "order_lookup": "no_id", "steps": 1}
 
-    order = get_order(order_id, state["customer_id"])
+    try:
+        order = get_order(order_id, state["customer_id"])
+    except GatewayError as e:
+        # Hệ thống tra đơn hỏng ≠ không có đơn: nói "không tìm thấy" là nói sai với khách (đơn có
+        # thật). Log mã lỗi ngắn (http_403, unreachable…), không có nội dung đơn / câu hỏi.
+        log.warning("order lookup failed backend=%s code=%s", ORDER_BACKEND, e)
+        return {"order_data": None, "order_lookup": "error", "steps": 1}
     if order is None:
         return {"order_data": None, "order_lookup": "not_found", "steps": 1}
 
@@ -104,6 +132,15 @@ _WELCOME = {
 _ASK_ORDER_ID = {
     "vi": "Bạn vui lòng cho mình xin mã đơn hàng (ví dụ #1003) để mình tra giúp nhé.",
     "en": "Could you share your order number (for example #1003) so I can look it up?",
+}
+
+# Tra đơn bị lỗi hệ thống (Gateway/Lambda hỏng, Day 60) → câu cố định, không gọi LLM: LLM không
+# có dữ kiện gì về đơn, để nó viết dễ thành "không tìm thấy đơn" — sai, vì đơn có thể có thật.
+_ORDER_UNAVAILABLE = {
+    "vi": "Xin lỗi, hệ thống tra cứu đơn hàng đang bận nên mình chưa xem được đơn của bạn. "
+          "Bạn vui lòng thử lại sau ít phút nhé.",
+    "en": "Sorry, our order lookup system is busy so I can't check your order right now. "
+          "Please try again in a few minutes.",
 }
 
 # Prompt viết tiếng Anh (Day 47: prompt tiếng Việt kéo câu trả lời về tiếng Việt).
@@ -203,7 +240,7 @@ def writer_node(state: SupportState) -> dict:
     """Ghép dữ liệu từ các nhánh đã chạy thành câu trả lời + danh sách nguồn."""
     lang = question_language(state["question"])
 
-    # Hai ca KHÔNG có dữ liệu gì để diễn đạt → câu cố định, không gọi LLM (không bịa được, $0).
+    # Ba ca KHÔNG có dữ liệu gì để diễn đạt → câu cố định, không gọi LLM (không bịa được, $0).
     # 1) route rỗng = supervisor xác định không cần nguồn nào (chào hỏi / lạc đề / injection)
     if not state.get("route"):
         return {"answer": _WELCOME[lang], "sources": [], "steps": 1}
@@ -211,6 +248,10 @@ def writer_node(state: SupportState) -> dict:
     #    Có đoạn chính sách (vd router route thừa "order", ca r16) thì vẫn để LLM trả lời phần đó.
     if state.get("order_lookup") == "no_id" and not state.get("policy_hits"):
         return {"answer": _ASK_ORDER_ID[lang], "sources": [], "steps": 1}
+    # 3) có mã đơn nhưng hệ thống tra đơn hỏng → báo bận, đánh dấu error cho người gọi / log
+    if state.get("order_lookup") == "error":
+        return {"answer": _ORDER_UNAVAILABLE[lang], "sources": [], "error": "order_unavailable",
+                "steps": 1}
 
     t0 = time.perf_counter()
     message = build_writer_input(state)
