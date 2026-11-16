@@ -173,7 +173,7 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | Test (Day 61) | 145 unit pass (0.6 s) · 7 integration pass (9 s, thêm 2 ca qua Gateway) | 2026-11-16 |
 | Gateway cả 2 tool (image `82c3f78`, `ORDER_BACKEND` + `POLICY_BACKEND=gateway`) | 18/18 qua Runtime; câu có tra cứu 1.2–2.0 s khi ấm; Lambda search_policy ~0.4 s, log chỉ `query_len`; role Runtime chỉ còn InvokeModel + InvokeGateway (simulator: Retrieve, GetItem `implicitDeny`), eval vẫn 18/18 | 2026-11-16 |
 | Test (Day 62) | 170 unit pass (0.7 s) — reset key theo lượt, thread theo khách, router/writer đọc lịch sử, HTTP 2 lượt | 2026-11-16 |
-| Trí nhớ hội thoại (image `a83ee77`) | routing eval 15/16 (y như trước); hội thoại 10/10 lượt (local và Runtime); 18 ca độc lập 18/18 (mỗi ca một session); log Runtime `has_session=yes` — header session tới được container | 2026-11-16 |
+| Trí nhớ hội thoại (image `a83ee77`) | routing eval 15/16 (y như trước); hội thoại 10/10 lượt (local và Runtime); 18 ca độc lập 18/18 (mỗi ca một session); log Runtime `has_session=yes` — header session tới được container; cùng session im lặng 330 s (> idle 300 s) → hỏi tiếp nhận `no_id` (đã quên, đúng thiết kế) | 2026-11-16 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
 
