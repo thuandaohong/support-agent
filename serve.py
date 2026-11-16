@@ -6,8 +6,9 @@ Runtime không import ask() — nó gửi HTTP vào container:
 Cổng 8080, host 0.0.0.0, image ARM64 (docs AgentCore: runtime-http-protocol-contract).
 
 customer_id nằm trong payload — VÌ SAO an toàn: Runtime để xác thực IAM (SigV4), khách KHÔNG gọi
-thẳng được; chỉ backend có quyền IAM gọi được, và backend điền customer_id từ JWT đã kiểm (API
-Gateway + Cognito, Day sau). Không bao giờ mở Runtime cho trình duyệt gọi trực tiếp với kiểu này.
+thẳng được; chỉ backend có quyền IAM gọi được, và backend điền customer_id lấy từ access token
+Cognito ĐÃ KIỂM (auth/tokens.py — Day 63: scripts/invoke_runtime.py --auth đóng vai backend;
+Day 64: API Gateway + Lambda). Không bao giờ mở Runtime cho trình duyệt gọi trực tiếp với kiểu này.
 
 as_of_date KHÔNG nhận từ payload: người gọi đặt được "hôm nay" là sửa được kết quả đổi trả/bảo hành.
 Nó đến từ cấu hình triển khai (env AS_OF_DATE; production để trống = ngày thật).
