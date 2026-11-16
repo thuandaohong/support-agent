@@ -1,0 +1,21 @@
+{
+  "name": "search_policy",
+  "description": "Tra tài liệu chính sách của cửa hàng (đổi trả, bảo hành, gói dịch vụ Basic/Premium/Pro, vận chuyển, trạng thái đơn, câu hỏi thường gặp) bằng câu hỏi tự nhiên. Trả về các đoạn liên quan nhất kèm tên file nguồn và điểm, điểm cao nhất trước. Không tra được đơn hàng cụ thể — dùng get_order cho việc đó.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Câu hỏi về chính sách, nguyên văn câu khách hỏi (tối đa 2000 ký tự)",
+        "maxLength": 2000
+      },
+      "top_k": {
+        "type": "integer",
+        "description": "Số đoạn muốn lấy, 1–5, mặc định 3",
+        "minimum": 1,
+        "maximum": 5
+      }
+    },
+    "required": ["query"]
+  }
+}
