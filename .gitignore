@@ -15,3 +15,7 @@ infra/runtime/runtime.env
 
 # Day 60 — biến thật cho infra/gateway/*.sh (chỉ commit gateway.env.example)
 infra/gateway/gateway.env
+
+# Day 63 — biến + mật khẩu user test của infra/auth/*.sh (chỉ commit auth.env.example)
+infra/auth/auth.env
+infra/auth/test-users.env
