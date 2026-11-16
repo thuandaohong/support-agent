@@ -6,6 +6,7 @@ Cần:   .env thật + credentials AWS. Tốn ~$0.005 / lần (3 lần gọi Nov
 Mỗi test kiểm MỘT tầng (KB → DynamoDB → cả graph), để khi đỏ biết ngay hỏng ở đâu.
 Tầng Gateway (Day 61): chỉ chạy khi có thêm GATEWAY_URL — cùng ca với tầng tool, đi qua
 mcp_client → AgentCore Gateway → Lambda.
+Tầng identity (Day 63): chỉ chạy khi có user test Cognito (infra/auth/test-users.env).
 Chỉ assert phần TẤT ĐỊNH (nguồn, route, order_lookup, steps) — không so nguyên văn câu trả lời
 của LLM, vì model diễn đạt mỗi lần một khác → test sẽ chập chờn. Chất lượng câu trả lời để eval
 (agents/try_graph.py, Phase E) chấm.
@@ -92,3 +93,44 @@ def test_gateway_get_order_same_rules_as_direct():
     assert get_order("1003", "C003")["plan"] == "Premium"
     assert get_order("1036", "C020") is None   # đơn người khác
     assert get_order("9999", "C003") is None   # không tồn tại — trông giống hệt ca trên
+
+
+# ─── tầng identity (Day 63): Cognito thật → auth/tokens.py ───
+
+USERS_FILE = os.path.join(os.path.dirname(__file__), "..", "infra", "auth", "test-users.env")
+needs_cognito = pytest.mark.skipif(not os.path.exists(USERS_FILE),
+                                   reason="cần user test Cognito (infra/auth/03-test-users.sh)")
+
+
+@pytest.fixture(scope="module")
+def cognito():
+    from auth.cognito import Cognito
+
+    c = Cognito()
+    return c, c.verifier(), c.login("C003")
+
+
+@needs_cognito
+def test_real_access_token_gives_customer_id(cognito):
+    _, verifier, login = cognito
+    assert verifier.customer_id(login["AccessToken"]) == "C003"   # Cognito lưu "c003" → chuẩn hoá
+
+
+@needs_cognito
+def test_real_token_with_one_changed_signature_char_is_rejected(cognito):
+    from auth.tokens import AuthError
+
+    _, verifier, login = cognito
+    header, payload, sig = login["AccessToken"].split(".")
+    bad = f"{header}.{payload}.{sig[:-5]}{'A' if sig[-5] != 'A' else 'B'}{sig[-4:]}"
+    with pytest.raises(AuthError, match="bad_signature"):
+        verifier.customer_id(bad)
+
+
+@needs_cognito
+def test_real_id_token_is_not_accepted(cognito):
+    from auth.tokens import AuthError
+
+    _, verifier, login = cognito
+    with pytest.raises(AuthError, match="not_access_token"):
+        verifier.customer_id(login["IdToken"])
