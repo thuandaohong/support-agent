@@ -46,7 +46,8 @@ Dự kiến (Phase D+):
 | `agents/` | Code LangGraph (supervisor + agent chuyên môn) |
 | `auth/` | Kiểm access token Cognito → `customer_id` (`tokens.py`); đăng nhập user test cho script (`cognito.py`) |
 | `tools/` | `search_policy`, `get_order` (gọi thẳng KB / DynamoDB), `*_gateway` + `mcp_client` (qua Gateway) |
-| `lambdas/` | Lambda `get_order`, `search_policy` đứng sau AgentCore Gateway (không vào image agent) |
+| `lambdas/` | Lambda `get_order`, `search_policy` đứng sau AgentCore Gateway; `chat_bridge` nối web → Runtime (không vào image agent) |
+| `frontend/` | Web chat React + đăng nhập Cognito (Day 64) |
 | `eval/` | Golden set + eval harness |
 | `infra/` | Terraform |
 | `sample-data/` | Dữ liệu synthetic — xem [sample-data/README.md](sample-data/README.md) |
@@ -171,6 +172,24 @@ python scripts/invoke_runtime.py --cases --auth                             # 1 
 python scripts/invoke_runtime.py "Đơn #1003 tới đâu?" --auth --attack tampered   # 401 bad_signature
 ```
 
+## Web chat (Day 64)
+
+```
+React (đăng nhập Cognito SRP) → HTTP API [JWT authorizer + scope · CORS · throttle · access log]
+  → Bridge Lambda [customer_id từ claims · session băm theo khách · SigV4] → AgentCore Runtime
+```
+
+Trình duyệt không giữ AWS key nào. HTTP API kiểm token trước khi Lambda chạy (401/403). Bridge lấy
+`customer_id` **chỉ từ claims**: body có `customer_id` là lỗi 400. Session của Runtime được băm kèm
+mã khách, nên khách khác dùng lại session id cũng không vào chung microVM. Chi tiết và số đo:
+[infra/api/README.md](infra/api/README.md) · [frontend/README.md](frontend/README.md).
+
+```bash
+./infra/api/01-bridge-lambda.sh && ./infra/api/02-http-api.sh && ./infra/api/03-frontend-env.sh
+python scripts/api_smoke.py --throttle          # 11 ca qua API thật
+cd frontend && npm install && npm run dev       # http://localhost:5173
+```
+
 ## Test (kim tự tháp)
 
 | Tầng | Lệnh | Gọi AWS? | Khi nào chạy |
@@ -198,6 +217,8 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | IAM audit (Day 63) | 5 role · Access Analyzer 0 finding · ma trận 26/26; trust role Runtime `SourceArn …:*` → `runtime/support_agent-*`, Runtime vẫn đúng | 2026-11-16 |
 | Identity (Day 63) | `--cases --auth` 18/18 · `--chat --auth` 10/10 (customer_id từ token); tampered → 401 `bad_signature`, ID token → 401 `not_access_token`, rác → 401 `malformed`, đổi 1 ký tự chữ ký → 401; C020 đăng nhập hỏi #1003 → `not_found` | 2026-11-16 |
 | Test (Day 63) | 193 unit pass (0.9 s, thêm 23 ca token không gọi mạng) · 3 integration Cognito thật pass | 2026-11-16 |
+| Web API (Day 64) | smoke 11/11 (CORS, 401/403, scope, customer_id từ token, nhớ hội thoại, C020 không thấy đơn C003, 429); Bridge cần quyền trên cả ARN runtime lẫn endpoint DEFAULT; throttle stage gần đúng (~60 req/s → 18/150 bị 429), giới hạn cứng là 10 concurrency Lambda (503); qua web 2.3–3.5 s/câu | 2026-11-16 |
+| Test (Day 64) | 215 unit pass (thêm 22 ca Bridge) · iam-audit 6 role 33/33 | 2026-11-16 |
 | Trí nhớ hội thoại (image `a83ee77`) | routing eval 15/16 (y như trước); hội thoại 10/10 lượt (local và Runtime); 18 ca độc lập 18/18 (mỗi ca một session); log Runtime `has_session=yes` — header session tới được container; cùng session im lặng 330 s (> idle 300 s) → hỏi tiếp nhận `no_id` (đã quên, đúng thiết kế) | 2026-11-16 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
