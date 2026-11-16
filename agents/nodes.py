@@ -22,7 +22,6 @@ from agents.llm import converse_text
 from agents.rules import check_return, check_warranty
 from agents.state import SupportState
 from tools.mcp_client import GatewayError
-from tools.search_policy import search_policy
 
 # Writer viết câu trả lời → có thể cần model tốt hơn router, nên cấu hình riêng
 WRITER_MODEL_ID = os.environ.get("WRITER_MODEL_ID", "amazon.nova-lite-v1:0")
@@ -47,8 +46,26 @@ def _pick_get_order(backend: str):
     return get_order
 
 
+def _pick_search_policy(backend: str):
+    """Chọn đường tra chính sách (Day 61). Cả hai cùng hợp đồng: list đoạn (có thể rỗng).
+
+    direct  — boto3 retrieve thẳng Knowledge Base bằng role đang chạy (Day 49–60)
+    gateway — qua AgentCore Gateway → Lambda (tools/search_policy_gateway.py); hỏng → GatewayError
+    Import trong hàm như _pick_get_order: đường gateway không cần POLICY_KB_ID.
+    """
+    if backend == "direct":
+        from tools.search_policy import search_policy
+    elif backend == "gateway":
+        from tools.search_policy_gateway import search_policy
+    else:
+        raise ValueError(f"POLICY_BACKEND={backend!r} không hợp lệ (direct | gateway)")
+    return search_policy
+
+
 ORDER_BACKEND = os.environ.get("ORDER_BACKEND", "direct")
 get_order = _pick_get_order(ORDER_BACKEND)
+POLICY_BACKEND = os.environ.get("POLICY_BACKEND", "direct")
+search_policy = _pick_search_policy(POLICY_BACKEND)
 
 
 # ─────────────────────────────── policy_node ───────────────────────────────
@@ -61,8 +78,14 @@ def policy_node(state: SupportState) -> dict:
     Hạn chế đã biết: chạy song song với order_node nên chưa biết gói của khách (Premium/Pro...)
     để tra trúng hơn — đổi lại nhanh hơn chạy tuần tự. Đoạn đổi trả liệt kê đủ 3 gói nên vẫn ổn.
     """
-    hits = search_policy(state["question"], top_k=3)
-    return {"policy_hits": hits, "steps": 1}
+    try:
+        hits = search_policy(state["question"], top_k=3)
+    except GatewayError as e:
+        # KB hỏng ≠ không có chính sách liên quan (list rỗng): writer phải báo bận, không được trả
+        # lời "không có thông tin". Log mã lỗi ngắn, không có nội dung câu hỏi.
+        log.warning("policy lookup failed backend=%s code=%s", POLICY_BACKEND, e)
+        return {"policy_hits": [], "policy_lookup": "error", "steps": 1}
+    return {"policy_hits": hits, "policy_lookup": "ok", "steps": 1}
 
 
 # ─────────────────────────────── order_node ────────────────────────────────
@@ -136,11 +159,28 @@ _ASK_ORDER_ID = {
 
 # Tra đơn bị lỗi hệ thống (Gateway/Lambda hỏng, Day 60) → câu cố định, không gọi LLM: LLM không
 # có dữ kiện gì về đơn, để nó viết dễ thành "không tìm thấy đơn" — sai, vì đơn có thể có thật.
-_ORDER_UNAVAILABLE = {
-    "vi": "Xin lỗi, hệ thống tra cứu đơn hàng đang bận nên mình chưa xem được đơn của bạn. "
-          "Bạn vui lòng thử lại sau ít phút nhé.",
-    "en": "Sorry, our order lookup system is busy so I can't check your order right now. "
-          "Please try again in a few minutes.",
+# Day 61: tương tự cho tra chính sách. Không để LLM viết phần còn lại: thiếu chính sách mà vẫn viết
+# thì dễ thành "không có thông tin" (rule 1: chỉ dùng DATA) — sai, vì chính sách có thật.
+# Khoá = tập nguồn bị hỏng → (câu trả lời, mã error cho người gọi / eval).
+_UNAVAILABLE = {
+    frozenset({"order"}): ({
+        "vi": "Xin lỗi, hệ thống tra cứu đơn hàng đang bận nên mình chưa xem được đơn của bạn. "
+              "Bạn vui lòng thử lại sau ít phút nhé.",
+        "en": "Sorry, our order lookup system is busy so I can't check your order right now. "
+              "Please try again in a few minutes.",
+    }, "order_unavailable"),
+    frozenset({"policy"}): ({
+        "vi": "Xin lỗi, hệ thống tra cứu chính sách đang bận nên mình chưa trả lời được. "
+              "Bạn vui lòng thử lại sau ít phút nhé.",
+        "en": "Sorry, our policy lookup system is busy so I can't answer right now. "
+              "Please try again in a few minutes.",
+    }, "policy_unavailable"),
+    frozenset({"order", "policy"}): ({
+        "vi": "Xin lỗi, hệ thống tra cứu đang bận nên mình chưa trả lời được. "
+              "Bạn vui lòng thử lại sau ít phút nhé.",
+        "en": "Sorry, our lookup systems are busy so I can't answer right now. "
+              "Please try again in a few minutes.",
+    }, "tools_unavailable"),
 }
 
 # Prompt viết tiếng Anh (Day 47: prompt tiếng Việt kéo câu trả lời về tiếng Việt).
@@ -244,14 +284,16 @@ def writer_node(state: SupportState) -> dict:
     # 1) route rỗng = supervisor xác định không cần nguồn nào (chào hỏi / lạc đề / injection)
     if not state.get("route"):
         return {"answer": _WELCOME[lang], "sources": [], "steps": 1}
-    # 2) hỏi về đơn nhưng thiếu mã, và không có đoạn chính sách → chỉ còn việc xin mã.
+    # 2) nguồn nào đã chạy mà HỎNG (Gateway/Lambda/KB) → báo bận, đánh dấu error cho người gọi / log.
+    #    Kiểm TRƯỚC ca 3: chính sách hỏng + thiếu mã đơn mà xin mã thì khách đưa mã xong vẫn hỏng.
+    failed = frozenset(k for k in ("order", "policy") if state.get(f"{k}_lookup") == "error")
+    if failed:
+        answers, code = _UNAVAILABLE[failed]
+        return {"answer": answers[lang], "sources": [], "error": code, "steps": 1}
+    # 3) hỏi về đơn nhưng thiếu mã, và không có đoạn chính sách → chỉ còn việc xin mã.
     #    Có đoạn chính sách (vd router route thừa "order", ca r16) thì vẫn để LLM trả lời phần đó.
     if state.get("order_lookup") == "no_id" and not state.get("policy_hits"):
         return {"answer": _ASK_ORDER_ID[lang], "sources": [], "steps": 1}
-    # 3) có mã đơn nhưng hệ thống tra đơn hỏng → báo bận, đánh dấu error cho người gọi / log
-    if state.get("order_lookup") == "error":
-        return {"answer": _ORDER_UNAVAILABLE[lang], "sources": [], "error": "order_unavailable",
-                "steps": 1}
 
     t0 = time.perf_counter()
     message = build_writer_input(state)

@@ -220,3 +220,46 @@ def test_order_backend_failure_answers_busy_without_llm(broken_orders):
     assert out["answer"].startswith("Xin lỗi, hệ thống tra cứu đơn hàng đang bận")
     assert "không tìm thấy" not in out["answer"].lower()
     assert out["sources"] == [] and broken_orders["writer"] == 0   # không gọi LLM writer
+
+
+# ─── Day 61: hệ thống tra chính sách hỏng ───
+
+@pytest.fixture
+def broken_policy(fake_aws, monkeypatch):
+    def broken(query, top_k=3):
+        raise GatewayError("tool_kb_unavailable")
+    monkeypatch.setattr(nodes, "search_policy", broken)
+    return fake_aws
+
+
+def test_policy_backend_failure_is_error_not_empty(broken_policy):
+    out = nodes.policy_node({"question": "Gói Pro đổi trả mấy ngày?"})
+    assert out["policy_lookup"] == "error" and out["policy_hits"] == []
+
+
+def test_policy_ok_marks_lookup(fake_aws):
+    assert nodes.policy_node({"question": "Gói Pro đổi trả mấy ngày?"})["policy_lookup"] == "ok"
+
+
+def test_policy_failure_answers_busy_without_llm(broken_policy):
+    broken_policy["router_reply"] = '{"route": ["policy"]}'
+    out = graph_mod.ask("Gói Pro đổi trả mấy ngày?", "C003", as_of_date="2026-11-08")
+    assert out["error"] == "policy_unavailable"
+    assert out["answer"].startswith("Xin lỗi, hệ thống tra cứu chính sách đang bận")
+    assert out["sources"] == [] and broken_policy["writer"] == 0
+
+
+def test_policy_failure_wins_over_asking_order_id(broken_policy):
+    # route thừa "order" + câu không có mã đơn (ca r16): chính sách hỏng → báo bận, KHÔNG xin mã đơn
+    out = graph_mod.ask("Tôi mới đặt hàng, gói Basic có được miễn phí vận chuyển không?", "C003",
+                        as_of_date="2026-11-08")
+    assert out["order_lookup"] == "no_id" and out["error"] == "policy_unavailable"
+
+
+def test_both_sources_failing_gives_one_busy_answer(broken_policy, monkeypatch):
+    def broken_order(order_id, customer_id):
+        raise GatewayError("http_403")
+    monkeypatch.setattr(nodes, "get_order", broken_order)
+    out = graph_mod.ask("Đơn #1003 còn đổi trả được không?", "C003", as_of_date="2026-11-08")
+    assert out["error"] == "tools_unavailable"
+    assert out["answer"].startswith("Xin lỗi, hệ thống tra cứu đang bận")
