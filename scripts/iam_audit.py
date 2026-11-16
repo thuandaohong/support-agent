@@ -1,7 +1,7 @@
 """Rà IAM của support-agent bằng máy (Day 63) — CHỈ ĐỌC, chạy lại bao nhiêu lần cũng được.
 
 Ba phần:
-  1. Bản đồ quyền: trust + permission của 5 role (runtime, gateway, 2 Lambda, KB). Account ID che thành <ACC>.
+  1. Bản đồ quyền: trust + permission của 6 role (runtime, gateway, 2 Lambda tool, KB, Bridge Day 64). Account ID che thành <ACC>.
   2. IAM Access Analyzer validate-policy: lỗi cú pháp, wildcard rộng, cảnh báo bảo mật.
   3. Ma trận simulate: mỗi role thử cả việc PHẢI ĐƯỢC lẫn việc PHẢI BỊ CHẶN. Mỗi lần simulate đúng
      1 hành động × 1 resource — gộp nhiều resource vào một lần cho kết quả sai (bài học Day 61).
@@ -65,6 +65,13 @@ def kb_bucket(role: str) -> str:
     sys.exit(f"Role {role} không có s3:GetObject — không xác định được bucket của KB")
 
 
+def runtime_arn(name: str) -> str:
+    for r in agentcore.list_agent_runtimes()["agentRuntimes"]:
+        if r["agentRuntimeName"] == name:
+            return r["agentRuntimeArn"]
+    sys.exit(f"Không thấy Runtime {name}")
+
+
 def gateway_id(name: str) -> str:
     for g in agentcore.list_gateways()["items"]:
         if g["name"] == name:
@@ -122,6 +129,7 @@ HIDE[support_kb["knowledgeBaseId"]] = "<KB_ID>"
 KB_ROLE = support_kb["roleArn"].rsplit("/", 1)[-1]
 BUCKET = kb_bucket(KB_ROLE)
 GW_ID = gateway_id(env("GATEWAY_NAME"))
+RUNTIME_ARN = runtime_arn(env("RUNTIME_NAME"))
 
 ARN = {
     "model": f"arn:aws:bedrock:{REGION}::foundation-model/{env('MODEL_ID')}",
@@ -137,6 +145,9 @@ ARN = {
     "fn_other": f"arn:aws:lambda:{REGION}:{ACCOUNT}:function:other-function",
     "bucket_obj": f"{BUCKET}/policies/example.md",
     "bucket_other_obj": "arn:aws:s3:::other-bucket-example/file.md",
+    "runtime": RUNTIME_ARN,
+    "runtime_endpoint": f"{RUNTIME_ARN}/runtime-endpoint/DEFAULT",
+    "runtime_other": f"arn:aws:bedrock-agentcore:{REGION}:{ACCOUNT}:runtime/other_agent-abcdefghij",
 }
 
 ROLES = {   # nhãn ngắn → tên role thật
@@ -145,6 +156,7 @@ ROLES = {   # nhãn ngắn → tên role thật
     "lambda get_order": env("LAMBDA_ROLE"),
     "lambda search_policy": env("POLICY_LAMBDA_ROLE"),
     "KB": KB_ROLE,
+    "bridge": os.environ.get("BRIDGE_ROLE", "support-chat-bridge"),   # Day 64 (infra/api)
 }
 
 # (role, action, resource, kỳ vọng: True = phải được, False = phải bị chặn)
@@ -175,6 +187,14 @@ MATRIX = [
     ("KB", "s3:GetObject", "bucket_obj", True),
     ("KB", "s3:PutObject", "bucket_obj", False),
     ("KB", "s3:GetObject", "bucket_other_obj", False),
+    # Day 64: Bridge Lambda chỉ được hỏi agent — không chạm dữ liệu, model hay Gateway
+    ("bridge", "bedrock-agentcore:InvokeAgentRuntime", "runtime", True),
+    ("bridge", "bedrock-agentcore:InvokeAgentRuntime", "runtime_endpoint", True),
+    ("bridge", "bedrock-agentcore:InvokeAgentRuntime", "runtime_other", False),
+    ("bridge", "bedrock-agentcore:InvokeGateway", "gateway", False),
+    ("bridge", "bedrock:InvokeModel", "model", False),
+    ("bridge", "dynamodb:GetItem", "table", False),
+    ("bridge", "bedrock:Retrieve", "kb", False),
 ]
 
 
