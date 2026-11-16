@@ -52,7 +52,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 # không đụng vào ký tự "$" nào khác.
 render() {
   local out="$TMP_DIR/$(basename "${1%.tpl}")"
-  envsubst '${ACCOUNT_ID} ${AWS_REGION} ${KB_ID} ${ORDERS_TABLE} ${MODEL_ID} ${ECR_REPO} ${GATEWAY_ID}' < "$1" > "$out"
+  envsubst '${ACCOUNT_ID} ${AWS_REGION} ${KB_ID} ${ORDERS_TABLE} ${MODEL_ID} ${ECR_REPO} ${GATEWAY_ID} ${RUNTIME_NAME}' < "$1" > "$out"
   echo "$out"
 }
 
