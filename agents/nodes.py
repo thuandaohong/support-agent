@@ -280,14 +280,18 @@ def build_writer_input(state: SupportState) -> str:
 HISTORY_ANSWER_CHARS = 400
 
 
-def _reply(state: SupportState, answer: str, sources: list[str] | None = None, **extra) -> dict:
+def _reply(state: SupportState, answer: str, sources: list[str] | None = None,
+           asked_order_id: bool = False, **extra) -> dict:
     """Kết quả của writer_node + GHI lượt này vào history (Day 62).
 
     MỌI nhánh (kể cả câu cố định) đi qua đây: bỏ sót một nhánh là lịch sử bị hổng — vd bot xin mã
     đơn mà không ghi lại, khách trả lời "1003" thì lượt sau không biết đang nói chuyện gì.
     order_id lưu kèm là mã CODE đã rút (supervisor), không đọc lại từ câu trả lời của LLM.
+    asked_order_id: lượt này bot xin mã đơn → lượt sau khách gõ mỗi con số thì supervisor nhận là mã.
     """
     turn = {"q": state["question"], "a": answer[:HISTORY_ANSWER_CHARS], "order_id": state.get("order_id")}
+    if asked_order_id:
+        turn["asked_order_id"] = True
     return {"answer": answer, "sources": sources or [], "steps": 1, "history": [turn], **extra}
 
 
@@ -308,7 +312,7 @@ def writer_node(state: SupportState) -> dict:
     # 3) hỏi về đơn nhưng thiếu mã, và không có đoạn chính sách → chỉ còn việc xin mã.
     #    Có đoạn chính sách (vd router route thừa "order", ca r16) thì vẫn để LLM trả lời phần đó.
     if state.get("order_lookup") == "no_id" and not state.get("policy_hits"):
-        return _reply(state, _ASK_ORDER_ID[lang])
+        return _reply(state, _ASK_ORDER_ID[lang], asked_order_id=True)
 
     t0 = time.perf_counter()
     message = build_writer_input(state)
