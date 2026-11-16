@@ -157,3 +157,32 @@ lambda_tool_context() {
   TOOL="$1" python3 -c 'import base64, json, os
 print(base64.b64encode(json.dumps({"custom": {"bedrockAgentCoreToolName": os.environ["TOOL"]}}).encode()).decode())'
 }
+
+# ensure_target <gateway_id> <tên target> <tên Lambda> <tool schema .json> — tạo hoặc cập nhật target
+#   Lambda + schema inline (lấy nguyên file .json, một nguồn duy nhất) + GATEWAY_IAM_ROLE (Gateway gọi
+#   Lambda bằng service role của nó). Tên tool agent thấy = "<tên target>___<name trong schema>".
+ensure_target() {
+  local gw="$1" target="$2" fn="$3" schema="$4" config="$TMP_DIR/target-$2.json" tid
+  local creds='[{"credentialProviderType":"GATEWAY_IAM_ROLE"}]'
+  ARN="$(lambda_arn "$fn")" SCHEMA="$schema" python3 -c 'import json, os
+tool = json.load(open(os.environ["SCHEMA"], encoding="utf-8"))
+print(json.dumps({"mcp": {"lambda": {"lambdaArn": os.environ["ARN"],
+                                      "toolSchema": {"inlinePayload": [tool]}}}}, ensure_ascii=False))' > "$config"
+
+  tid="$(target_id "$gw" "$target")"
+  if [[ -n "$tid" ]]; then
+    echo "Target $target đã có (id $tid) → cập nhật schema / Lambda"
+    aws bedrock-agentcore-control update-gateway-target --gateway-identifier "$gw" --target-id "$tid" \
+      --name "$target" --description "Lambda $fn" \
+      --target-configuration "file://$config" --credential-provider-configurations "$creds" \
+      --query status --output text
+  else
+    echo "Tạo target $target → $fn"
+    tid="$(aws bedrock-agentcore-control create-gateway-target --gateway-identifier "$gw" \
+      --name "$target" --description "Lambda $fn" \
+      --target-configuration "file://$config" --credential-provider-configurations "$creds" \
+      --query targetId --output text)"
+    echo "  id: $tid"
+  fi
+  wait_status "target $target" aws bedrock-agentcore-control get-gateway-target --gateway-identifier "$gw" --target-id "$tid"
+}

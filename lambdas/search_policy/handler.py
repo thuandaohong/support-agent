@@ -7,6 +7,9 @@ Gateway gọi Lambda theo kiểu tách đôi (giống get_order):
 - event   = arguments của tools/call ({"query": ..., "top_k": ...})
 - context.client_context.custom["bedrockAgentCoreToolName"] = "<target>___search_policy" → tự cắt tiền tố.
 
+Gateway CHỈ kiểm "required" + kiểu trong inputSchema (schema của Gateway không nhận maxLength /
+minimum / maximum) → độ dài query và khoảng top_k phải kiểm ở đây.
+
 query là CÂU HỎI CỦA KHÁCH (văn bản tự do, có thể có thông tin cá nhân) → KHÔNG log nội dung,
 chỉ log độ dài + số đoạn trả về (quy định từ Project #1).
 """

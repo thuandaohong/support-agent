@@ -100,5 +100,9 @@ def test_schema_matches_handler():
     assert schema["name"] == "search_policy"
     assert tuple(schema["inputSchema"]["required"]) == handler.REQUIRED
     props = schema["inputSchema"]["properties"]
-    assert props["query"]["maxLength"] == handler.MAX_QUERY
-    assert props["top_k"]["maximum"] == handler.MAX_TOP_K
+    # Gateway CHỈ nhận type/properties/required/items/description (đo khi tạo target, Day 61):
+    # maxLength/minimum/maximum bị từ chối → giới hạn ghi bằng chữ, Lambda tự kiểm
+    allowed = {"type", "properties", "required", "items", "description"}
+    assert all(set(p) <= allowed for p in props.values())
+    assert str(handler.MAX_QUERY) in props["query"]["description"]
+    assert f"1–{handler.MAX_TOP_K}" in props["top_k"]["description"]

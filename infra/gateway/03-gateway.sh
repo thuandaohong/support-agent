@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Bước 3a (Day 60): service role + AgentCore Gateway (MCP server).
-#   role    → CHỈ bedrock-agentcore của gateway tên này được mượn; CHỈ được gọi Lambda get_order
+#   role    → CHỈ bedrock-agentcore của gateway tên này được mượn; CHỈ được gọi 2 Lambda tool
+#             (get_order, search_policy — liệt kê từng ARN, không wildcard)
 #   gateway → protocol MCP, inbound AWS_IAM: người gọi phải ký SigV4 + có bedrock-agentcore:InvokeGateway
 # Chạy lại được: role cập nhật policy; gateway đã có thì giữ nguyên, chỉ in URL.
 source "$(dirname "$0")/_env.sh"
