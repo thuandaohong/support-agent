@@ -4,6 +4,7 @@ Bước 1: reducer history + danh sách key reset mỗi lượt (chống State c
 Bước 2: checkpointer + thread_id = khách + session.
 Bước 3: supervisor đọc lịch sử (router + mã đơn).
 Bước 4: writer đọc lịch sử + giữ ngôn ngữ hội thoại.
+Bước 6: bộ chấm eval dùng chung.
 """
 import agents.graph as graph_mod
 from agents import nodes, supervisor
@@ -191,3 +192,15 @@ def test_digits_only_reply_keeps_conversation_language():
     assert nodes.turn_language(state) == "vi"
     assert nodes.turn_language({"question": "1003"}) == "en"            # không có lịch sử → như cũ
     assert nodes.turn_language({"question": "Can I return it?", "history": state["history"]}) == "en"
+
+
+# ─── Bước 6: bộ chấm eval ───
+
+def test_eval_checker_rules():
+    from agents.eval_cases import CONVERSATIONS, load, problems
+    out = {"route": ["policy"], "sources": ["04-shipping.md"]}
+    assert problems(out, {"route": ["policy"], "order_lookup": "absent", "forbid_source": "orders/1003"}) == []
+    assert problems({**out, "order_lookup": "found"}, {"order_lookup": "absent"})      # phải vắng mà có
+    assert problems({**out, "sources": ["orders/1003"]}, {"forbid_source": "orders/1003"})
+    assert problems(out, {"route": None, "order_lookup": None}) == []                   # null = bỏ qua
+    assert all(len(c["turns"]) >= 2 for c in load(CONVERSATIONS))
