@@ -18,7 +18,9 @@ Sơ đồ kiến trúc (mục tiêu Phase D + hiện trạng): [docs/architectur
 ask(question, customer_id)              ← cửa vào duy nhất (agents/graph.py)
   └─ graph: START → supervisor → [policy ∥ order | (bỏ qua)] → writer → END
        • supervisor : LLM định tuyến (policy / order / cả hai / không cần) + regex mã đơn
-       • policy     : search_policy → Bedrock Knowledge Base
+       • policy     : search_policy
+                      POLICY_BACKEND=direct → boto3 → Bedrock Knowledge Base
+                      POLICY_BACKEND=gateway → mcp_client → AgentCore Gateway → Lambda → KB (Day 61)
        • order      : get_order (chặn đơn người khác) + rules.py tính đổi trả/bảo hành
                       ORDER_BACKEND=direct → boto3 → DynamoDB
                       ORDER_BACKEND=gateway → mcp_client → AgentCore Gateway → Lambda → DynamoDB (Day 60)
@@ -40,8 +42,8 @@ Dự kiến (Phase D+):
 | Thư mục | Nội dung |
 |---|---|
 | `agents/` | Code LangGraph (supervisor + agent chuyên môn) |
-| `tools/` | `search_policy`, `get_order` (DynamoDB trực tiếp), `get_order_gateway` + `mcp_client` (qua Gateway) |
-| `lambdas/` | Lambda `get_order` đứng sau AgentCore Gateway (không vào image agent) |
+| `tools/` | `search_policy`, `get_order` (gọi thẳng KB / DynamoDB), `*_gateway` + `mcp_client` (qua Gateway) |
+| `lambdas/` | Lambda `get_order`, `search_policy` đứng sau AgentCore Gateway (không vào image agent) |
 | `eval/` | Golden set + eval harness |
 | `infra/` | Terraform |
 | `sample-data/` | Dữ liệu synthetic — xem [sample-data/README.md](sample-data/README.md) |
@@ -107,21 +109,23 @@ python scripts/invoke_runtime.py --cases                                 # 18 ca
 ./infra/runtime/04-logs.sh 15m                                           # log CloudWatch
 ```
 
-## Tool qua AgentCore Gateway (Day 60)
+## Tool qua AgentCore Gateway (Day 60–61)
 
-Tool tra đơn chạy ở **Lambda `support-get-order`**, công bố qua **AgentCore Gateway** (MCP, inbound
-IAM). Agent gọi bằng [tools/mcp_client.py](tools/mcp_client.py) (HTTPS + SigV4, không cần thư viện
-`mcp`). Role Runtime chỉ còn `InvokeGateway` — không đọc thẳng DynamoDB được nữa. Hạ tầng + chi tiết
-trong [infra/gateway/](infra/gateway/README.md).
+Cả hai tool chạy ở Lambda (`support-get-order`, `support-search-policy`), công bố qua **AgentCore
+Gateway** (MCP, inbound IAM) dưới tên `orders___get_order`, `policies___search_policy`. Agent gọi bằng
+[tools/mcp_client.py](tools/mcp_client.py) (HTTPS + SigV4, không cần thư viện `mcp`). Role Runtime chỉ
+còn `InvokeModel` + `InvokeGateway` — không đọc thẳng DynamoDB hay Knowledge Base được nữa. Hạ tầng +
+chi tiết trong [infra/gateway/](infra/gateway/README.md).
 
 ```bash
-python scripts/mcp_call.py                       # tools/list + 3 ca qua Gateway thật
-ORDER_BACKEND=gateway GATEWAY_URL=https://…/mcp \
+python scripts/mcp_call.py                       # tools/list + ca chuẩn của 2 tool qua Gateway thật
+ORDER_BACKEND=gateway POLICY_BACKEND=gateway GATEWAY_URL=https://…/mcp \
   python -m agents.graph "Đơn #1003 còn đổi trả được không?" --customer C003 -v
 ```
 
-Gateway hỏng (mạng, quyền, Lambda) → `order_lookup="error"`, câu cố định "hệ thống tra cứu đơn hàng
-đang bận", `error="order_unavailable"` — không bao giờ trả lời "không tìm thấy đơn".
+Gateway hỏng (mạng, quyền, Lambda, KB) → `order_lookup` / `policy_lookup` = `"error"`, câu cố định
+"hệ thống tra cứu … đang bận", `error` = `order_unavailable` / `policy_unavailable` /
+`tools_unavailable` — không bao giờ trả lời "không tìm thấy đơn" hay "không có thông tin".
 
 ## Test (kim tự tháp)
 
@@ -144,6 +148,8 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | AgentCore Runtime (image `2fe1122`) | 18/18 route + order_lookup qua endpoint cloud; 0.6–1.9 s/câu khi ấm, lần đầu ~15 s (cold start); log không có nội dung câu hỏi | 2026-11-15 |
 | Test (Day 60) | 111 unit pass (0.8 s) — thêm Lambda get_order, mcp_client, đường Gateway | 2026-11-16 |
 | AgentCore Gateway (image `b3aa95a`, `ORDER_BACKEND=gateway`) | 18/18 qua Runtime → Gateway → Lambda; câu tra đơn ~1.4–1.6 s khi ấm; Lambda warm 6–24 ms, cold init ~0.5 s; role Runtime chưa có `InvokeGateway` → 403 → khách nhận "đang bận"; sau khi bỏ `GetItem`: simulator `implicitDeny`, eval vẫn 18/18 | 2026-11-16 |
+| Test (Day 61) | 145 unit pass (0.6 s) · 7 integration pass (9 s, thêm 2 ca qua Gateway) | 2026-11-16 |
+| Gateway cả 2 tool (image `82c3f78`, `ORDER_BACKEND` + `POLICY_BACKEND=gateway`) | 18/18 qua Runtime; câu có tra cứu 1.2–2.0 s khi ấm; Lambda search_policy ~0.4 s, log chỉ `query_len`; role Runtime chỉ còn InvokeModel + InvokeGateway (simulator: Retrieve, GetItem `implicitDeny`), eval vẫn 18/18 | 2026-11-16 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
 

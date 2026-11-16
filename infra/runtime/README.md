@@ -11,7 +11,7 @@ Account ID không ghi ở đâu cả: script tự lấy bằng `aws sts get-call
 
 ```bash
 cd support-agent
-cp infra/runtime/runtime.env.example infra/runtime/runtime.env   # điền KB_ID, IMAGE_TAG (ORDER_BACKEND, GATEWAY_NAME có sẵn)
+cp infra/runtime/runtime.env.example infra/runtime/runtime.env   # điền KB_ID, IMAGE_TAG (ORDER_BACKEND, POLICY_BACKEND, GATEWAY_NAME có sẵn)
 ./infra/runtime/01-create-role.sh        # role + trust policy + inline permissions (chạy lại = cập nhật)
 ./infra/runtime/02-create-runtime.sh     # tạo Runtime từ image ECR, chờ READY
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003
@@ -43,13 +43,15 @@ python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
 | Logs* | ghi stdout container | chỉ `/aws/bedrock-agentcore/runtimes/*` |
 | XRay, Metrics | trace, số đo | metrics khoá namespace `bedrock-agentcore` |
 | AppModelOnly | `bedrock:InvokeModel` | chỉ `MODEL_ID` (Nova Lite) — mẫu docs cho `foundation-model/*` |
-| AppPolicyKB | `bedrock:Retrieve` | chỉ KB `KB_ID` |
+| AppPolicyKB | `bedrock:Retrieve` | chỉ KB `KB_ID` — **chỉ khi `POLICY_BACKEND=direct`** (Day 61) |
 | AppOrdersTable | `dynamodb:GetItem` | chỉ bảng `support-orders` — **chỉ khi `ORDER_BACKEND=direct`** |
 | AppGatewayInvoke | `bedrock-agentcore:InvokeGateway` | chỉ gateway `support-gateway` — **chỉ khi `ORDER_BACKEND=gateway`** (Day 60) |
 
-`01-create-role.sh` giữ đúng MỘT trong hai quyền tra đơn theo `ORDER_BACKEND`: chạy qua Gateway thì
-role Runtime không tự đọc bảng đơn được. Đổi đường: sửa `runtime.env` → `01-create-role.sh` →
-`05-update-image.sh` (không cần build lại image; id + URL Gateway tra theo `GATEWAY_NAME`).
+`01-create-role.sh` lọc quyền theo `ORDER_BACKEND` / `POLICY_BACKEND`: tool nào đi qua Gateway thì bỏ
+quyền đọc trực tiếp của tool đó. Cả hai qua Gateway → role chỉ còn `InvokeModel` + `InvokeGateway`
+(+ ECR / log / X-Ray): container không tự đọc dữ liệu nào. Đổi đường: sửa `runtime.env` →
+`01-create-role.sh` → `05-update-image.sh` (không cần build lại image; id + URL Gateway tra theo
+`GATEWAY_NAME`). Container chỉ nhận biến của đường đang dùng (`ORDERS_TABLE` / `POLICY_KB_ID` / `GATEWAY_URL`).
 
 Bỏ so với mẫu docs: `GetWorkloadAccessToken*` (code chưa dùng workload identity — thêm ở ngày Identity).
 

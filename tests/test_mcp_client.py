@@ -94,3 +94,20 @@ def test_network_failure_is_gateway_error(http):
     http(urllib3.exceptions.ReadTimeoutError(None, URL, "timed out"))
     with pytest.raises(GatewayError, match="unreachable"):
         mcp_client.call_tool(URL, "orders___get_order", {})
+
+
+def test_concurrent_calls_get_distinct_ids(http):
+    # policy_node và order_node chạy SONG SONG (LangGraph dùng thread pool) → 2 lời gọi Gateway cùng
+    # lúc từ 2 thread, chung _http và _ids. Mỗi request phải có id riêng, không lẫn kết quả.
+    from concurrent.futures import ThreadPoolExecutor
+    fake = http(FakeResp(body=tool_result({"found": False})))
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        outs = list(pool.map(lambda _: mcp_client.call_tool(URL, "orders___get_order", {}), range(64)))
+    assert outs == [{"found": False}] * 64
+    ids = [s["body"]["id"] for s in fake.sent]
+    assert len(ids) == len(set(ids)) == 64
+
+
+def test_pool_keeps_connections_for_parallel_nodes():
+    # Mặc định urllib3 giữ 1 kết nối/host → 2 node song song làm mất keep-alive (đo thật Day 61)
+    assert mcp_client._http.connection_pool_kw["maxsize"] >= 2

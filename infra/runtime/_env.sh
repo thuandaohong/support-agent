@@ -14,11 +14,15 @@ set -a; source "$ENV_FILE"; set +a
 for v in AWS_REGION KB_ID ORDERS_TABLE MODEL_ID ECR_REPO IMAGE_TAG ROLE_NAME RUNTIME_NAME IDLE_TIMEOUT MAX_LIFETIME; do
   [[ -n "${!v:-}" ]] || { echo "Biến $v trống trong $ENV_FILE" >&2; exit 1; }
 done
-ORDER_BACKEND="${ORDER_BACKEND:-direct}"
-[[ "$ORDER_BACKEND" == direct || "$ORDER_BACKEND" == gateway ]] \
-  || { echo "ORDER_BACKEND phải là direct hoặc gateway" >&2; exit 1; }
-[[ "$ORDER_BACKEND" == direct || -n "${GATEWAY_NAME:-}" ]] \
-  || { echo "ORDER_BACKEND=gateway cần GATEWAY_NAME" >&2; exit 1; }
+ORDER_BACKEND="${ORDER_BACKEND:-direct}"; POLICY_BACKEND="${POLICY_BACKEND:-direct}"
+for b in ORDER_BACKEND POLICY_BACKEND; do
+  [[ "${!b}" == direct || "${!b}" == gateway ]] || { echo "$b phải là direct hoặc gateway" >&2; exit 1; }
+done
+# USE_GATEWAY: có ít nhất một tool đi qua Gateway → cần tra Gateway + quyền InvokeGateway
+USE_GATEWAY=no
+[[ "$ORDER_BACKEND" == gateway || "$POLICY_BACKEND" == gateway ]] && USE_GATEWAY=yes
+[[ "$USE_GATEWAY" == no || -n "${GATEWAY_NAME:-}" ]] \
+  || { echo "ORDER_BACKEND / POLICY_BACKEND=gateway cần GATEWAY_NAME" >&2; exit 1; }
 [[ "$RUNTIME_NAME" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]] || { echo "RUNTIME_NAME chỉ được chữ, số, '_' (không '-')" >&2; exit 1; }
 command -v envsubst >/dev/null || { echo "Cần envsubst (brew install gettext)" >&2; exit 1; }
 
@@ -30,7 +34,7 @@ export IMAGE_URI="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE
 
 # Gateway (Day 60): tra id + URL theo tên mỗi lần chạy — Gateway tạo lại thì id đổi, file không phải sửa
 GATEWAY_ID=""; GATEWAY_URL=""
-if [[ "$ORDER_BACKEND" == gateway ]]; then
+if [[ "$USE_GATEWAY" == yes ]]; then
   GATEWAY_ID="$(aws bedrock-agentcore-control list-gateways \
         --query "items[?name=='$GATEWAY_NAME'].gatewayId | [0]" --output text)"
   [[ -n "$GATEWAY_ID" && "$GATEWAY_ID" != "None" ]] \
@@ -38,7 +42,7 @@ if [[ "$ORDER_BACKEND" == gateway ]]; then
   GATEWAY_URL="$(aws bedrock-agentcore-control get-gateway --gateway-identifier "$GATEWAY_ID" \
         --query gatewayUrl --output text)"
 fi
-export ORDER_BACKEND GATEWAY_ID GATEWAY_URL
+export ORDER_BACKEND POLICY_BACKEND USE_GATEWAY GATEWAY_ID GATEWAY_URL
 
 # Thư mục tạm cho policy đã render (có account ID / KB ID thật) — tự xoá khi script kết thúc
 TMP_DIR="$(mktemp -d)"
@@ -74,14 +78,15 @@ role_arn() {
 env_vars_json() {
   python3 -c 'import json, os
 print(json.dumps({
-    "POLICY_KB_ID": os.environ["KB_ID"],
     "ROUTER_MODEL_ID": os.environ["MODEL_ID"],
     "WRITER_MODEL_ID": os.environ["MODEL_ID"],
     "AS_OF_DATE": os.environ.get("AS_OF_DATE", ""),
     "ORDER_BACKEND": os.environ["ORDER_BACKEND"],
-    # chỉ truyền biến của đường đang dùng: direct cần tên bảng, gateway cần URL
-    **({"GATEWAY_URL": os.environ["GATEWAY_URL"]} if os.environ["ORDER_BACKEND"] == "gateway"
-       else {"ORDERS_TABLE": os.environ["ORDERS_TABLE"]}),
+    "POLICY_BACKEND": os.environ["POLICY_BACKEND"],
+    # chỉ truyền biến của đường đang dùng: direct cần tên bảng / KB id, gateway cần URL
+    **({"ORDERS_TABLE": os.environ["ORDERS_TABLE"]} if os.environ["ORDER_BACKEND"] == "direct" else {}),
+    **({"POLICY_KB_ID": os.environ["KB_ID"]} if os.environ["POLICY_BACKEND"] == "direct" else {}),
+    **({"GATEWAY_URL": os.environ["GATEWAY_URL"]} if os.environ["USE_GATEWAY"] == "yes" else {}),
 }))'
 }
 

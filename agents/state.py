@@ -21,6 +21,7 @@ class SupportState(TypedDict, total=False):
 
     # specialist ghi (Day 8) — mỗi node một key
     policy_hits: list[dict]   # policy_node: kết quả search_policy
+    policy_lookup: str        # policy_node (Day 61): "ok" | "error" (KB / Gateway hỏng → báo bận)
     order_data: dict | None   # order_node: kết quả get_order (+ days_since_order do code tính)
     # order_node: kết quả tra đơn, để writer biết trả lời kiểu gì:
     #   "found"     — có đơn và đúng là của khách
@@ -32,7 +33,8 @@ class SupportState(TypedDict, total=False):
     # writer ghi (Day 8)
     answer: str
     sources: list[str]
-    error: str                # chỉ có khi không trả lời được bình thường (order_unavailable, recursion_limit)
+    error: str                # chỉ có khi không trả lời bình thường được (order_/policy_/tools_unavailable,
+                              # recursion_limit)
 
     # mọi node cộng dồn: node trả {"steps": 1} → reducer cộng, không ghi đè
     steps: Annotated[int, operator.add]

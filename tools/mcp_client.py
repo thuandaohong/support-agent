@@ -31,7 +31,11 @@ SERVICE = "bedrock-agentcore"
 TIMEOUT = 10  # giây — tra 1 đơn: cold start Lambda ~1s; hơn 10s thì coi như Gateway hỏng
 
 _session = boto3.Session()
-_http = urllib3.PoolManager(retries=False)   # không tự retry: tools/call không chắc idempotent ở mọi tool
+# retries=False: không tự retry — tools/call không chắc idempotent ở mọi tool.
+# maxsize=4: số kết nối giữ lại cho MỖI host. Mặc định 1 → policy_node + order_node gọi Gateway song
+# song (Day 61) thì 1 kết nối bị vứt sau mỗi lượt ("Connection pool is full, discarding connection"),
+# lần sau phải bắt tay TLS lại. 2 node song song là đủ; dư một chút cho an toàn.
+_http = urllib3.PoolManager(retries=False, maxsize=4)
 _ids = itertools.count(1)
 
 
