@@ -35,7 +35,8 @@ trả `order_data` / `policy_hits` (dữ liệu nội bộ). Debug cần nguyên
 
 Dự kiến (Phase D+):
 
-- **Amazon Bedrock AgentCore**: Memory, Identity, Observability (Runtime — Day 59, Gateway — Day 60: đã chạy)
+- **Amazon Bedrock AgentCore**: Memory, Observability (Runtime — Day 59, Gateway — Day 60: đã chạy;
+  Identity người dùng bằng Cognito — Day 63)
 - Guardrails · Eval · CloudWatch · Terraform · GitHub Actions
 
 ## Cấu trúc
@@ -43,6 +44,7 @@ Dự kiến (Phase D+):
 | Thư mục | Nội dung |
 |---|---|
 | `agents/` | Code LangGraph (supervisor + agent chuyên môn) |
+| `auth/` | Kiểm access token Cognito → `customer_id` (`tokens.py`); đăng nhập user test cho script (`cognito.py`) |
 | `tools/` | `search_policy`, `get_order` (gọi thẳng KB / DynamoDB), `*_gateway` + `mcp_client` (qua Gateway) |
 | `lambdas/` | Lambda `get_order`, `search_policy` đứng sau AgentCore Gateway (không vào image agent) |
 | `eval/` | Golden set + eval harness |
@@ -149,6 +151,26 @@ python scripts/invoke_runtime.py "Đơn #1003 còn đổi trả được không?
 python scripts/invoke_runtime.py "Thế bảo hành thì sao?" --customer C003 --session <id vừa in>
 ```
 
+## Identity & IAM (Day 63)
+
+**Ai đang hỏi?** Khách đăng nhập Cognito (`infra/auth/`, pool `support-users`) và nhận access
+token. Backend kiểm token 6 bước (`auth/tokens.py`: chữ ký RS256 theo JWKS → `iss` → `exp` →
+`token_use=access` → `client_id` → định dạng username), rồi **lấy `customer_id` từ token**, không tin
+tham số người gọi tự điền. Token giả, bị sửa, hết hạn hoặc là ID token đều bị chặn **trước** Runtime,
+nên không tốn token Bedrock. Runtime vẫn xác thực IAM, Gateway vẫn `AWS_IAM`: Cognito đứng trước
+Runtime, ở chỗ Day 64 sẽ đặt API Gateway. Chi tiết: [infra/auth/README.md](infra/auth/README.md).
+
+**Được làm gì?** Mỗi thành phần một role tối thiểu, kiểm bằng máy:
+`./infra/iam-audit.sh` chạy Access Analyzer và 26 ô simulate, gồm cả các ô *phải bị chặn*. Bản đồ quyền:
+[docs/iam.md](docs/iam.md).
+
+```bash
+./infra/iam-audit.sh                                                        # chỉ đọc; lệch → exit 1
+python scripts/invoke_runtime.py "Đơn #1003 tới đâu?" --customer C003 --auth
+python scripts/invoke_runtime.py --cases --auth                             # 1 token / khách
+python scripts/invoke_runtime.py "Đơn #1003 tới đâu?" --auth --attack tampered   # 401 bad_signature
+```
+
 ## Test (kim tự tháp)
 
 | Tầng | Lệnh | Gọi AWS? | Khi nào chạy |
@@ -173,6 +195,9 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | Test (Day 61) | 145 unit pass (0.6 s) · 7 integration pass (9 s, thêm 2 ca qua Gateway) | 2026-11-16 |
 | Gateway cả 2 tool (image `82c3f78`, `ORDER_BACKEND` + `POLICY_BACKEND=gateway`) | 18/18 qua Runtime; câu có tra cứu 1.2–2.0 s khi ấm; Lambda search_policy ~0.4 s, log chỉ `query_len`; role Runtime chỉ còn InvokeModel + InvokeGateway (simulator: Retrieve, GetItem `implicitDeny`), eval vẫn 18/18 | 2026-11-16 |
 | Test (Day 62) | 170 unit pass (0.7 s) — reset key theo lượt, thread theo khách, router/writer đọc lịch sử, HTTP 2 lượt | 2026-11-16 |
+| IAM audit (Day 63) | 5 role · Access Analyzer 0 finding · ma trận 26/26; trust role Runtime `SourceArn …:*` → `runtime/support_agent-*`, Runtime vẫn đúng | 2026-11-16 |
+| Identity (Day 63) | `--cases --auth` 18/18 · `--chat --auth` 10/10 (customer_id từ token); tampered → 401 `bad_signature`, ID token → 401 `not_access_token`, rác → 401 `malformed`, đổi 1 ký tự chữ ký → 401; C020 đăng nhập hỏi #1003 → `not_found` | 2026-11-16 |
+| Test (Day 63) | 193 unit pass (0.9 s, thêm 23 ca token không gọi mạng) · 3 integration Cognito thật pass | 2026-11-16 |
 | Trí nhớ hội thoại (image `a83ee77`) | routing eval 15/16 (y như trước); hội thoại 10/10 lượt (local và Runtime); 18 ca độc lập 18/18 (mỗi ca một session); log Runtime `has_session=yes` — header session tới được container; cùng session im lặng 330 s (> idle 300 s) → hỏi tiếp nhận `no_id` (đã quên, đúng thiết kế) | 2026-11-16 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).

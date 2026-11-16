@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Bước 2 (day59-runtime-deploy.md): tạo / cập nhật IAM execution role cho AgentCore Runtime.
-#   trust policy       → CHỈ bedrock-agentcore trong account này được mượn role (chống confused deputy)
+#   trust policy       → CHỈ Runtime tên $RUNTIME_NAME trong account này được mượn role (SourceArn
+#                        runtime/<tên>-*, chống confused deputy — Day 63)
 #   permissions policy → ECR pull (1 repo), log, X-Ray, InvokeModel (1 model)
 #                        + tra đơn: GetItem 1 bảng (ORDER_BACKEND=direct) · tra chính sách: Retrieve 1 KB
 #                        (POLICY_BACKEND=direct) · InvokeGateway 1 gateway (khi có tool đi Gateway)

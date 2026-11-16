@@ -8,7 +8,7 @@
       "Action": "sts:AssumeRole",
       "Condition": {
         "StringEquals": { "aws:SourceAccount": "${ACCOUNT_ID}" },
-        "ArnLike": { "aws:SourceArn": "arn:aws:bedrock-agentcore:${AWS_REGION}:${ACCOUNT_ID}:*" }
+        "ArnLike": { "aws:SourceArn": "arn:aws:bedrock-agentcore:${AWS_REGION}:${ACCOUNT_ID}:runtime/${RUNTIME_NAME}-*" }
       }
     }
   ]
