@@ -17,9 +17,10 @@ from datetime import date
 from dotenv import load_dotenv
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import Overwrite
 
 from agents.nodes import order_node, policy_node, question_language, writer_node
-from agents.state import SupportState
+from agents.state import TURN_KEYS, SupportState
 from agents.supervisor import supervisor_node
 
 load_dotenv()
@@ -100,7 +101,8 @@ def ask(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
     Trường nào không có trong lần chạy (vd route ["policy"] → không có order_lookup) thì vắng mặt.
     """
     state = run_graph(question, customer_id, as_of_date)
-    return {k: state[k] for k in PUBLIC_FIELDS if k in state}
+    # None = key theo lượt đã reset nhưng lượt này không ghi (vd không chạy order_node) → coi như vắng
+    return {k: state[k] for k in PUBLIC_FIELDS if state.get(k) is not None}
 
 
 def run_graph(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
@@ -108,12 +110,14 @@ def run_graph(question: str, customer_id: str, as_of_date: str | None = None) ->
 
     Code gọi từ bên ngoài (API, eval) dùng ask(), không dùng hàm này.
     """
-    initial = {
+    inputs = {
         "question": question,
         "customer_id": customer_id,
         "as_of_date": as_of_date or AS_OF_DATE or date.today().isoformat(),
-        "steps": 0,   # điểm xuất phát cho reducer operator.add
     }
+    # Mỗi lượt bắt đầu sạch: reset mọi key theo lượt + đếm steps lại từ 0. Overwrite bỏ qua reducer
+    # operator.add (truyền 0 thường thì chỉ cộng thêm 0). history KHÔNG reset → được nhớ.
+    initial = {**inputs, **dict.fromkeys(TURN_KEYS), "steps": Overwrite(0)}
     try:
         return graph.invoke(initial, config={"recursion_limit": RECURSION_LIMIT})
     except GraphRecursionError:
@@ -122,8 +126,8 @@ def run_graph(question: str, customer_id: str, as_of_date: str | None = None) ->
         # có vòng lặp bất thường (không log nội dung câu hỏi). Tầng mềm — conditional edge kiểm
         # `steps < N` để tự thoát kèm câu trả lời — chỉ cần khi graph có vòng lặp.
         log.warning("graph stopped: recursion_limit=%d exceeded", RECURSION_LIMIT)
-        return {**initial, "answer": _BUSY[question_language(question)], "sources": [],
-                "error": "recursion_limit"}
+        return {**inputs, "answer": _BUSY[question_language(question)], "sources": [],
+                "error": "recursion_limit", "steps": 0}
 
 
 def main():
@@ -137,7 +141,7 @@ def main():
         logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 
     out = run_graph(args.question, args.customer, args.as_of)   # nguyên State để in ORDER khi debug
-    print(f"ROUTE: {out.get('route')}   ORDER_LOOKUP: {out.get('order_lookup', '-')}   "
+    print(f"ROUTE: {out.get('route')}   ORDER_LOOKUP: {out.get('order_lookup') or '-'}   "
           f"STEPS: {out['steps']}")
     if out.get("order_data"):
         print("ORDER:", json.dumps(out["order_data"], ensure_ascii=False))

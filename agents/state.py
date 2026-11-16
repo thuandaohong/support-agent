@@ -1,12 +1,27 @@
 """SupportState: dữ liệu chảy qua graph — "hợp đồng" giữa các node.
 
 Nguyên tắc: mỗi key chỉ một node ghi (node song song không đụng nhau), riêng `steps` nhiều node
-cùng cộng nên dùng reducer. Chỉ chứa dữ liệu JSON được (checkpointer sẽ lưu State).
+cùng cộng nên dùng reducer. Chỉ chứa dữ liệu JSON được (checkpointer lưu State).
+
+Day 62 — có checkpointer, State của lượt trước được NẠP LẠI cho lượt sau (cùng thread_id). Key
+nào input không ghi thì GIỮ giá trị cũ → mọi key "theo lượt" (TURN_KEYS) phải reset mỗi lần gọi,
+không thì order_lookup / error / order_data của lượt trước dính sang (đã chạy thử, xem day62-plan).
+Chỉ `history` là được nhớ qua các lượt.
 """
 from __future__ import annotations
 
 import operator
 from typing import Annotated, TypedDict
+
+HISTORY_TURNS = 6   # số lượt giữ lại; prompt chỉ dùng vài lượt gần nhất (xem supervisor / nodes)
+
+
+def keep_last_turns(old: list | None, new: list | None) -> list:
+    """Reducer của history: nối lượt mới vào rồi chỉ giữ HISTORY_TURNS lượt gần nhất.
+
+    operator.add trơn thì history lớn mãi theo số lượt → prompt dài dần, tốn token.
+    """
+    return ((old or []) + (new or []))[-HISTORY_TURNS:]
 
 
 class SupportState(TypedDict, total=False):
@@ -36,5 +51,17 @@ class SupportState(TypedDict, total=False):
     error: str                # chỉ có khi không trả lời bình thường được (order_/policy_/tools_unavailable,
                               # recursion_limit)
 
-    # mọi node cộng dồn: node trả {"steps": 1} → reducer cộng, không ghi đè
+    # mọi node cộng dồn: node trả {"steps": 1} → reducer cộng, không ghi đè.
+    # Có checkpointer thì truyền 0 KHÔNG reset được (reducer cộng 0 vào số cũ) → run_graph dùng Overwrite(0)
     steps: Annotated[int, operator.add]
+
+    # Day 62 — nhớ qua các lượt cùng thread (writer ghi, supervisor + writer đọc).
+    # Mỗi phần tử: {"q": câu hỏi, "a": câu trả lời (đã cắt ngắn), "order_id": mã đơn lượt đó hoặc None}
+    history: Annotated[list[dict], keep_last_turns]
+
+
+# Đầu vào của mỗi lượt — run_graph đặt mới mỗi lần gọi
+INPUT_KEYS = ("question", "customer_id", "as_of_date")
+# Kết quả của MỘT lượt — run_graph reset về None mỗi lần gọi (không cho dính sang lượt sau)
+TURN_KEYS = ("order_id", "route", "policy_hits", "policy_lookup", "order_data", "order_lookup",
+             "answer", "sources", "error")

@@ -4,49 +4,13 @@ Thứ được kiểm: luồng của graph (route nào chạy node nào, steps c
 kết luận đổi trả/bảo hành gắn vào đơn, nguồn do code tạo. Chất lượng câu trả lời thật thì đo bằng agents/try_graph.py.
 """
 import pytest
+from fakes import HITS
 
 import agents.graph as graph_mod
-from agents import nodes, supervisor
+from agents import nodes
 from tools.mcp_client import GatewayError
 
-ORDERS = {  # "DynamoDB" giả: order_id → đơn
-    "1003": {"order_id": "1003", "customer_id": "C003", "plan": "Premium",
-             "status": "delivered", "order_date": "2026-11-02", "amount": 45},
-}
-HITS = [
-    {"text": "Premium: 14 ngày", "source": "https://b.s3.amazonaws.com/policies/01-return-policy.md", "score": 0.5},
-    {"text": "ví dụ", "source": "https://b.s3.amazonaws.com/policies/01-return-policy.md", "score": 0.4},
-    {"text": "gói", "source": "https://b.s3.amazonaws.com/policies/03-service-plans.md", "score": 0.3},
-]
-
-
-@pytest.fixture
-def fake_aws(monkeypatch):
-    """Thay mọi lời gọi AWS. Trả dict `calls` để test xem node nào đã gọi gì."""
-    calls = {"router_reply": '{"route": ["policy", "order"]}', "writer": 0, "search": 0}
-
-    def fake_converse(model_id, system, user, max_tokens=512, temperature=0.0):
-        if system is supervisor.ROUTER_PROMPT:          # router
-            return calls["router_reply"], {}
-        calls["writer"] += 1                            # writer
-        calls["writer_input"] = user
-        return "câu trả lời giả", {}
-
-    def fake_search(query, top_k=3):
-        calls["search"] += 1
-        return HITS
-
-    def fake_get_order(order_id, customer_id):
-        order = ORDERS.get(order_id)
-        # giống tool thật: đơn của người khác → None
-        return dict(order) if order and order["customer_id"] == customer_id else None
-
-    monkeypatch.setattr(supervisor, "converse_text", fake_converse)
-    monkeypatch.setattr(nodes, "converse_text", fake_converse)
-    monkeypatch.setattr(nodes, "search_policy", fake_search)
-    monkeypatch.setattr(nodes, "get_order", fake_get_order)
-    return calls
-
+# Fixture fake_aws (thay LLM / KB / DynamoDB bằng hàm giả) nằm ở conftest.py — dùng chung với test_memory.py
 
 def run(question, customer="C003"):
     """Nguyên State cuối — test nội bộ cần xem order_data, policy_hits..."""
@@ -90,7 +54,7 @@ def test_policy_only_skips_order_node(fake_aws):
     fake_aws["router_reply"] = '{"route": ["policy"]}'
     out = run("Gói Premium đổi trả mấy ngày?")
     assert out["steps"] == 3
-    assert "order_lookup" not in out                   # order_node không chạy
+    assert out.get("order_lookup") is None             # order_node không chạy (key theo lượt đã reset)
     assert "ORDER LOOKUP" not in fake_aws["writer_input"]
 
 
