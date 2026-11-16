@@ -5,9 +5,7 @@
 # Không có đối số: chạy 3 ca chuẩn.
 source "$(dirname "$0")/_env.sh"
 
-# Gateway truyền metadata qua ClientContext; Python đọc ở context.client_context.custom
-CLIENT_CONTEXT="$(TOOL="${TARGET_NAME}___get_order" python3 -c 'import base64, json, os
-print(base64.b64encode(json.dumps({"custom": {"bedrockAgentCoreToolName": os.environ["TOOL"]}}).encode()).decode())')"
+CLIENT_CONTEXT="$(lambda_tool_context "${TARGET_NAME}___get_order")"
 
 call() {
   local payload
