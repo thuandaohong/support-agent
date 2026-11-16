@@ -61,6 +61,12 @@
       "Effect": "Allow",
       "Action": "dynamodb:GetItem",
       "Resource": "arn:aws:dynamodb:${AWS_REGION}:${ACCOUNT_ID}:table/${ORDERS_TABLE}"
+    },
+    {
+      "Sid": "AppGatewayInvoke",
+      "Effect": "Allow",
+      "Action": "bedrock-agentcore:InvokeGateway",
+      "Resource": "arn:aws:bedrock-agentcore:${AWS_REGION}:${ACCOUNT_ID}:gateway/${GATEWAY_ID}"
     }
   ]
 }

@@ -11,7 +11,7 @@ Account ID không ghi ở đâu cả: script tự lấy bằng `aws sts get-call
 
 ```bash
 cd support-agent
-cp infra/runtime/runtime.env.example infra/runtime/runtime.env   # điền KB_ID, IMAGE_TAG
+cp infra/runtime/runtime.env.example infra/runtime/runtime.env   # điền KB_ID, IMAGE_TAG (ORDER_BACKEND, GATEWAY_NAME có sẵn)
 ./infra/runtime/01-create-role.sh        # role + trust policy + inline permissions (chạy lại = cập nhật)
 ./infra/runtime/02-create-runtime.sh     # tạo Runtime từ image ECR, chờ READY
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003
@@ -44,7 +44,12 @@ python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
 | XRay, Metrics | trace, số đo | metrics khoá namespace `bedrock-agentcore` |
 | AppModelOnly | `bedrock:InvokeModel` | chỉ `MODEL_ID` (Nova Lite) — mẫu docs cho `foundation-model/*` |
 | AppPolicyKB | `bedrock:Retrieve` | chỉ KB `KB_ID` |
-| AppOrdersTable | `dynamodb:GetItem` | chỉ bảng `support-orders` — không Scan/Put/Delete |
+| AppOrdersTable | `dynamodb:GetItem` | chỉ bảng `support-orders` — **chỉ khi `ORDER_BACKEND=direct`** |
+| AppGatewayInvoke | `bedrock-agentcore:InvokeGateway` | chỉ gateway `support-gateway` — **chỉ khi `ORDER_BACKEND=gateway`** (Day 60) |
+
+`01-create-role.sh` giữ đúng MỘT trong hai quyền tra đơn theo `ORDER_BACKEND`: chạy qua Gateway thì
+role Runtime không tự đọc bảng đơn được. Đổi đường: sửa `runtime.env` → `01-create-role.sh` →
+`05-update-image.sh` (không cần build lại image; id + URL Gateway tra theo `GATEWAY_NAME`).
 
 Bỏ so với mẫu docs: `GetWorkloadAccessToken*` (code chưa dùng workload identity — thêm ở ngày Identity).
 

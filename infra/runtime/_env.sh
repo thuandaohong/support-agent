@@ -14,6 +14,11 @@ set -a; source "$ENV_FILE"; set +a
 for v in AWS_REGION KB_ID ORDERS_TABLE MODEL_ID ECR_REPO IMAGE_TAG ROLE_NAME RUNTIME_NAME IDLE_TIMEOUT MAX_LIFETIME; do
   [[ -n "${!v:-}" ]] || { echo "Biến $v trống trong $ENV_FILE" >&2; exit 1; }
 done
+ORDER_BACKEND="${ORDER_BACKEND:-direct}"
+[[ "$ORDER_BACKEND" == direct || "$ORDER_BACKEND" == gateway ]] \
+  || { echo "ORDER_BACKEND phải là direct hoặc gateway" >&2; exit 1; }
+[[ "$ORDER_BACKEND" == direct || -n "${GATEWAY_NAME:-}" ]] \
+  || { echo "ORDER_BACKEND=gateway cần GATEWAY_NAME" >&2; exit 1; }
 [[ "$RUNTIME_NAME" =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]] || { echo "RUNTIME_NAME chỉ được chữ, số, '_' (không '-')" >&2; exit 1; }
 command -v envsubst >/dev/null || { echo "Cần envsubst (brew install gettext)" >&2; exit 1; }
 
@@ -23,6 +28,18 @@ ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 export ACCOUNT_ID
 export IMAGE_URI="$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG"
 
+# Gateway (Day 60): tra id + URL theo tên mỗi lần chạy — Gateway tạo lại thì id đổi, file không phải sửa
+GATEWAY_ID=""; GATEWAY_URL=""
+if [[ "$ORDER_BACKEND" == gateway ]]; then
+  GATEWAY_ID="$(aws bedrock-agentcore-control list-gateways \
+        --query "items[?name=='$GATEWAY_NAME'].gatewayId | [0]" --output text)"
+  [[ -n "$GATEWAY_ID" && "$GATEWAY_ID" != "None" ]] \
+    || { echo "Không thấy Gateway $GATEWAY_NAME — chạy infra/gateway/03-gateway.sh" >&2; exit 1; }
+  GATEWAY_URL="$(aws bedrock-agentcore-control get-gateway --gateway-identifier "$GATEWAY_ID" \
+        --query gatewayUrl --output text)"
+fi
+export ORDER_BACKEND GATEWAY_ID GATEWAY_URL
+
 # Thư mục tạm cho policy đã render (có account ID / KB ID thật) — tự xoá khi script kết thúc
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -31,7 +48,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 # không đụng vào ký tự "$" nào khác.
 render() {
   local out="$TMP_DIR/$(basename "${1%.tpl}")"
-  envsubst '${ACCOUNT_ID} ${AWS_REGION} ${KB_ID} ${ORDERS_TABLE} ${MODEL_ID} ${ECR_REPO}' < "$1" > "$out"
+  envsubst '${ACCOUNT_ID} ${AWS_REGION} ${KB_ID} ${ORDERS_TABLE} ${MODEL_ID} ${ECR_REPO} ${GATEWAY_ID}' < "$1" > "$out"
   echo "$out"
 }
 
@@ -58,10 +75,13 @@ env_vars_json() {
   python3 -c 'import json, os
 print(json.dumps({
     "POLICY_KB_ID": os.environ["KB_ID"],
-    "ORDERS_TABLE": os.environ["ORDERS_TABLE"],
     "ROUTER_MODEL_ID": os.environ["MODEL_ID"],
     "WRITER_MODEL_ID": os.environ["MODEL_ID"],
     "AS_OF_DATE": os.environ.get("AS_OF_DATE", ""),
+    "ORDER_BACKEND": os.environ["ORDER_BACKEND"],
+    # chỉ truyền biến của đường đang dùng: direct cần tên bảng, gateway cần URL
+    **({"GATEWAY_URL": os.environ["GATEWAY_URL"]} if os.environ["ORDER_BACKEND"] == "gateway"
+       else {"ORDERS_TABLE": os.environ["ORDERS_TABLE"]}),
 }))'
 }
 

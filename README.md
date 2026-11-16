@@ -19,7 +19,9 @@ ask(question, customer_id)              ← cửa vào duy nhất (agents/graph.
   └─ graph: START → supervisor → [policy ∥ order | (bỏ qua)] → writer → END
        • supervisor : LLM định tuyến (policy / order / cả hai / không cần) + regex mã đơn
        • policy     : search_policy → Bedrock Knowledge Base
-       • order      : get_order → DynamoDB (chặn đơn người khác) + rules.py tính đổi trả/bảo hành
+       • order      : get_order (chặn đơn người khác) + rules.py tính đổi trả/bảo hành
+                      ORDER_BACKEND=direct → boto3 → DynamoDB
+                      ORDER_BACKEND=gateway → mcp_client → AgentCore Gateway → Lambda → DynamoDB (Day 60)
        • writer     : LLM diễn đạt; câu cố định khi không có dữ liệu (chào hỏi, thiếu mã đơn)
        • an toàn    : recursion_limit (bắt lỗi → câu "hệ thống bận") + steps reducer
   └─ test: unit (AWS giả, chạy trên CI) + integration (AWS thật, RUN_INTEGRATION=1)
@@ -30,7 +32,7 @@ trả `order_data` / `policy_hits` (dữ liệu nội bộ). Debug cần nguyên
 
 Dự kiến (Phase D+):
 
-- **Amazon Bedrock AgentCore**: Runtime, Memory, Identity, Observability, Gateway (tool qua MCP)
+- **Amazon Bedrock AgentCore**: Memory, Identity, Observability (Runtime — Day 59, Gateway — Day 60: đã chạy)
 - Guardrails · Eval · CloudWatch · Terraform · GitHub Actions
 
 ## Cấu trúc
@@ -38,7 +40,8 @@ Dự kiến (Phase D+):
 | Thư mục | Nội dung |
 |---|---|
 | `agents/` | Code LangGraph (supervisor + agent chuyên môn) |
-| `tools/` | `search_policy`, `get_order` |
+| `tools/` | `search_policy`, `get_order` (DynamoDB trực tiếp), `get_order_gateway` + `mcp_client` (qua Gateway) |
+| `lambdas/` | Lambda `get_order` đứng sau AgentCore Gateway (không vào image agent) |
 | `eval/` | Golden set + eval harness |
 | `infra/` | Terraform |
 | `sample-data/` | Dữ liệu synthetic — xem [sample-data/README.md](sample-data/README.md) |
@@ -104,6 +107,22 @@ python scripts/invoke_runtime.py --cases                                 # 18 ca
 ./infra/runtime/04-logs.sh 15m                                           # log CloudWatch
 ```
 
+## Tool qua AgentCore Gateway (Day 60)
+
+Tool tra đơn chạy ở **Lambda `support-get-order`**, công bố qua **AgentCore Gateway** (MCP, inbound
+IAM). Agent gọi bằng [tools/mcp_client.py](tools/mcp_client.py) (HTTPS + SigV4, không cần thư viện
+`mcp`). Role Runtime chỉ còn `InvokeGateway` — không đọc thẳng DynamoDB được nữa. Hạ tầng + chi tiết
+trong [infra/gateway/](infra/gateway/README.md).
+
+```bash
+python scripts/mcp_call.py                       # tools/list + 3 ca qua Gateway thật
+ORDER_BACKEND=gateway GATEWAY_URL=https://…/mcp \
+  python -m agents.graph "Đơn #1003 còn đổi trả được không?" --customer C003 -v
+```
+
+Gateway hỏng (mạng, quyền, Lambda) → `order_lookup="error"`, câu cố định "hệ thống tra cứu đơn hàng
+đang bận", `error="order_unavailable"` — không bao giờ trả lời "không tìm thấy đơn".
+
 ## Test (kim tự tháp)
 
 | Tầng | Lệnh | Gọi AWS? | Khi nào chạy |
@@ -123,6 +142,8 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | Test | 69 unit pass (0.4 s) · 5 integration pass (7 s) | 2026-11-14 |
 | Container | image arm64 362 MB (bỏ `langchain-aws` không dùng: 456 → 362); `/ping` + 4 ca `/invocations` đúng trong container; ECR scan HIGH 4 → 2 (glibc chưa có bản vá) | 2026-11-15 |
 | AgentCore Runtime (image `2fe1122`) | 18/18 route + order_lookup qua endpoint cloud; 0.6–1.9 s/câu khi ấm, lần đầu ~15 s (cold start); log không có nội dung câu hỏi | 2026-11-15 |
+| Test (Day 60) | 111 unit pass (0.8 s) — thêm Lambda get_order, mcp_client, đường Gateway | 2026-11-16 |
+| AgentCore Gateway (image `b3aa95a`, `ORDER_BACKEND=gateway`) | 18/18 qua Runtime → Gateway → Lambda; câu tra đơn ~1.4–1.6 s khi ấm; Lambda warm 6–24 ms, cold init ~0.5 s; role Runtime chưa có `InvokeGateway` → 403 → khách nhận "đang bận"; sau khi bỏ `GetItem`: simulator `implicitDeny`, eval vẫn 18/18 | 2026-11-16 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
 
