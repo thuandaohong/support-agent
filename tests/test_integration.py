@@ -4,6 +4,8 @@ Chạy:  RUN_INTEGRATION=1 python -m pytest -v tests/test_integration.py
 Cần:   .env thật + credentials AWS. Tốn ~$0.005 / lần (3 lần gọi Nova Lite + 3 lần retrieve).
 
 Mỗi test kiểm MỘT tầng (KB → DynamoDB → cả graph), để khi đỏ biết ngay hỏng ở đâu.
+Tầng Gateway (Day 61): chỉ chạy khi có thêm GATEWAY_URL — cùng ca với tầng tool, đi qua
+mcp_client → AgentCore Gateway → Lambda.
 Chỉ assert phần TẤT ĐỊNH (nguồn, route, order_lookup, steps) — không so nguyên văn câu trả lời
 của LLM, vì model diễn đạt mỗi lần một khác → test sẽ chập chờn. Chất lượng câu trả lời để eval
 (agents/try_graph.py, Phase E) chấm.
@@ -66,3 +68,27 @@ def test_ask_greeting_skips_tools():
     out = ask("Xin chào", "C003", as_of_date=AS_OF)
     assert (out["route"], out["steps"], out["sources"]) == ([], 2, [])
     assert out["answer"].startswith("Chào bạn!")
+
+
+# ─── tầng Gateway (Day 61): cùng ca, đi qua MCP ───
+
+needs_gateway = pytest.mark.skipif(not os.environ.get("GATEWAY_URL"),
+                                   reason="cần GATEWAY_URL (URL /mcp của support-gateway)")
+
+
+@needs_gateway
+def test_gateway_search_policy_finds_return_policy():
+    from tools.search_policy_gateway import search_policy
+
+    hits = search_policy("Gói Premium được đổi trả trong bao nhiêu ngày?", top_k=3)
+    assert 1 <= len(hits) <= 3
+    assert any(h["source"].endswith("/01-return-policy.md") for h in hits)
+
+
+@needs_gateway
+def test_gateway_get_order_same_rules_as_direct():
+    from tools.get_order_gateway import get_order
+
+    assert get_order("1003", "C003")["plan"] == "Premium"
+    assert get_order("1036", "C020") is None   # đơn người khác
+    assert get_order("9999", "C003") is None   # không tồn tại — trông giống hệt ca trên
