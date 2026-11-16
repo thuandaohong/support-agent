@@ -1,22 +1,27 @@
 #!/usr/bin/env bash
 # Bước 2 (day59-runtime-deploy.md): tạo / cập nhật IAM execution role cho AgentCore Runtime.
 #   trust policy       → CHỈ bedrock-agentcore trong account này được mượn role (chống confused deputy)
-#   permissions policy → ECR pull (1 repo), log, X-Ray, InvokeModel (1 model), Retrieve (1 KB),
-#                        + tra đơn: GetItem 1 bảng (ORDER_BACKEND=direct) HOẶC InvokeGateway 1 gateway (gateway)
+#   permissions policy → ECR pull (1 repo), log, X-Ray, InvokeModel (1 model)
+#                        + tra đơn: GetItem 1 bảng (ORDER_BACKEND=direct) · tra chính sách: Retrieve 1 KB
+#                        (POLICY_BACKEND=direct) · InvokeGateway 1 gateway (khi có tool đi Gateway)
 # Chạy lại được: role đã có thì cập nhật trust + policy (put-role-policy ghi đè).
 source "$(dirname "$0")/_env.sh"
 
 TRUST="$(render "$HERE/trust-policy.json.tpl")"
 PERMS="$(render "$HERE/permissions-policy.json.tpl")"
 # Mỗi tool chỉ giữ quyền của đường đang dùng (Day 60–61):
-#   ORDER_BACKEND=direct  → GetItem bảng đơn     · gateway → bỏ GetItem
-#   cả hai tool direct    → bỏ InvokeGateway (ARN ".../gateway/" rỗng cũng vô nghĩa)
-python3 - "$PERMS" "$ORDER_BACKEND" "$USE_GATEWAY" <<'PY'
+#   ORDER_BACKEND=direct   → GetItem bảng đơn     · gateway → bỏ GetItem
+#   POLICY_BACKEND=direct  → Retrieve KB          · gateway → bỏ Retrieve
+#   cả hai tool direct     → bỏ InvokeGateway (ARN ".../gateway/" rỗng cũng vô nghĩa)
+# Cả hai qua Gateway → role chỉ còn InvokeModel + InvokeGateway: container không tự đọc dữ liệu nào.
+python3 - "$PERMS" "$ORDER_BACKEND" "$POLICY_BACKEND" "$USE_GATEWAY" <<'PY'
 import json, sys
-path, order, use_gateway = sys.argv[1:]
+path, order, policy, use_gateway = sys.argv[1:]
 drop = set()
 if order == "gateway":
     drop.add("AppOrdersTable")
+if policy == "gateway":
+    drop.add("AppPolicyKB")
 if use_gateway == "no":
     drop.add("AppGatewayInvoke")
 doc = json.load(open(path))
