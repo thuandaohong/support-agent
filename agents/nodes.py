@@ -276,24 +276,39 @@ def build_writer_input(state: SupportState) -> str:
     return "\n\n".join(parts)
 
 
+# Câu trả lời lưu vào history bị cắt ngắn: đủ để hiểu câu nối tiếp, không phình prompt các lượt sau
+HISTORY_ANSWER_CHARS = 400
+
+
+def _reply(state: SupportState, answer: str, sources: list[str] | None = None, **extra) -> dict:
+    """Kết quả của writer_node + GHI lượt này vào history (Day 62).
+
+    MỌI nhánh (kể cả câu cố định) đi qua đây: bỏ sót một nhánh là lịch sử bị hổng — vd bot xin mã
+    đơn mà không ghi lại, khách trả lời "1003" thì lượt sau không biết đang nói chuyện gì.
+    order_id lưu kèm là mã CODE đã rút (supervisor), không đọc lại từ câu trả lời của LLM.
+    """
+    turn = {"q": state["question"], "a": answer[:HISTORY_ANSWER_CHARS], "order_id": state.get("order_id")}
+    return {"answer": answer, "sources": sources or [], "steps": 1, "history": [turn], **extra}
+
+
 def writer_node(state: SupportState) -> dict:
-    """Ghép dữ liệu từ các nhánh đã chạy thành câu trả lời + danh sách nguồn."""
+    """Ghép dữ liệu từ các nhánh đã chạy thành câu trả lời + danh sách nguồn, ghi lượt vào history."""
     lang = question_language(state["question"])
 
     # Ba ca KHÔNG có dữ liệu gì để diễn đạt → câu cố định, không gọi LLM (không bịa được, $0).
     # 1) route rỗng = supervisor xác định không cần nguồn nào (chào hỏi / lạc đề / injection)
     if not state.get("route"):
-        return {"answer": _WELCOME[lang], "sources": [], "steps": 1}
+        return _reply(state, _WELCOME[lang])
     # 2) nguồn nào đã chạy mà HỎNG (Gateway/Lambda/KB) → báo bận, đánh dấu error cho người gọi / log.
     #    Kiểm TRƯỚC ca 3: chính sách hỏng + thiếu mã đơn mà xin mã thì khách đưa mã xong vẫn hỏng.
     failed = frozenset(k for k in ("order", "policy") if state.get(f"{k}_lookup") == "error")
     if failed:
         answers, code = _UNAVAILABLE[failed]
-        return {"answer": answers[lang], "sources": [], "error": code, "steps": 1}
+        return _reply(state, answers[lang], error=code)
     # 3) hỏi về đơn nhưng thiếu mã, và không có đoạn chính sách → chỉ còn việc xin mã.
     #    Có đoạn chính sách (vd router route thừa "order", ca r16) thì vẫn để LLM trả lời phần đó.
     if state.get("order_lookup") == "no_id" and not state.get("policy_hits"):
-        return {"answer": _ASK_ORDER_ID[lang], "sources": [], "steps": 1}
+        return _reply(state, _ASK_ORDER_ID[lang])
 
     t0 = time.perf_counter()
     message = build_writer_input(state)
@@ -319,4 +334,4 @@ def writer_node(state: SupportState) -> dict:
              lang, lang_retry, state.get("order_lookup"), len(state.get("policy_hits") or []),
              len(answer), (time.perf_counter() - t0) * 1000,
              usage.get("inputTokens"), usage.get("outputTokens"))
-    return {"answer": answer.strip(), "sources": build_sources(state), "steps": 1}
+    return _reply(state, answer.strip(), build_sources(state))
