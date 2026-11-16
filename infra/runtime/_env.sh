@@ -75,12 +75,13 @@ env_vars_json() {
   python3 -c 'import json, os
 print(json.dumps({
     "POLICY_KB_ID": os.environ["KB_ID"],
-    "ORDERS_TABLE": os.environ["ORDERS_TABLE"],
     "ROUTER_MODEL_ID": os.environ["MODEL_ID"],
     "WRITER_MODEL_ID": os.environ["MODEL_ID"],
     "AS_OF_DATE": os.environ.get("AS_OF_DATE", ""),
     "ORDER_BACKEND": os.environ["ORDER_BACKEND"],
-    **({"GATEWAY_URL": os.environ["GATEWAY_URL"]} if os.environ["ORDER_BACKEND"] == "gateway" else {}),
+    # chỉ truyền biến của đường đang dùng: direct cần tên bảng, gateway cần URL
+    **({"GATEWAY_URL": os.environ["GATEWAY_URL"]} if os.environ["ORDER_BACKEND"] == "gateway"
+       else {"ORDERS_TABLE": os.environ["ORDERS_TABLE"]}),
 }))'
 }
 
