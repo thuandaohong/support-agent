@@ -12,6 +12,11 @@ Gateway + Cognito, Day sau). Không bao giờ mở Runtime cho trình duyệt g�
 as_of_date KHÔNG nhận từ payload: người gọi đặt được "hôm nay" là sửa được kết quả đổi trả/bảo hành.
 Nó đến từ cấu hình triển khai (env AS_OF_DATE; production để trống = ngày thật).
 
+Trí nhớ hội thoại (Day 62): Runtime chuyển runtimeSessionId vào container qua header
+X-Amzn-Bedrock-AgentCore-Runtime-Session-Id (docs: runtime-sessions, "Session headers by protocol").
+Cùng session = cùng microVM → checkpointer trong RAM nhớ các lượt trước. Không có header (chạy
+local / curl) → mỗi câu độc lập như trước.
+
 Chạy local:  uvicorn serve:app --port 8080
 """
 from __future__ import annotations
@@ -19,7 +24,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -48,13 +53,22 @@ async def ping():
     return {"status": "Healthy"}
 
 
+SESSION_HEADER = "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id"
+
+
 @app.post("/invocations")
-def invocations(req: Invocation):
+def invocations(
+    req: Invocation,
+    # Runtime yêu cầu session id ≥ 33 ký tự; giới hạn trên chặn khoá thread khổng lồ trong RAM
+    session_id: Annotated[str | None, Header(alias=SESSION_HEADER, max_length=256)] = None,
+):
     # `def` thường, KHÔNG `async def`: ask() chặn (gọi Bedrock/DynamoDB đồng bộ vài giây).
     # FastAPI chạy hàm `def` trong threadpool → event loop rảnh để trả /ping. Viết `async def` mà
     # gọi code chặn bên trong thì cả server đứng → Runtime ping không được → coi container hỏng.
+    # Chỉ log CÓ / KHÔNG có session — không log giá trị (đủ để kiểm header có tới container không)
+    log.info("invocation has_session=%s", "yes" if session_id else "no")
     try:
-        return ask(req.question, req.customer_id)
+        return ask(req.question, req.customer_id, session_id=session_id)
     except Exception:
         # Traceback vào log để mình debug; người gọi chỉ nhận mã lỗi chung — không trả str(e) như
         # ví dụ của AWS docs (lộ tên bảng, ARN, chi tiết nội bộ)

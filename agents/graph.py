@@ -12,14 +12,17 @@ import argparse
 import json
 import logging
 import os
+import uuid
 from datetime import date
 
 from dotenv import load_dotenv
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import Overwrite
 
 from agents.nodes import order_node, policy_node, question_language, writer_node
-from agents.state import SupportState
+from agents.state import TURN_KEYS, SupportState
 from agents.supervisor import supervisor_node
 
 load_dotenv()
@@ -74,11 +77,15 @@ def build_graph():
     g.add_edge("order", "writer")
     g.add_edge("writer", END)
 
-    # 3. compile: kiểm tra graph hợp lệ (node nào cũng tới được, cạnh trỏ đúng tên...) → app chạy được
-    return g.compile()
+    # 3. compile: kiểm tra graph hợp lệ (node nào cũng tới được, cạnh trỏ đúng tên...) → app chạy được.
+    #    checkpointer (Day 62): lưu State sau mỗi node theo thread_id → lượt sau cùng thread nạp lại
+    #    (history). InMemorySaver = RAM của process: trên AgentCore Runtime mỗi session một microVM,
+    #    nên nhớ được trong lúc session còn sống; session dừng (rảnh quá idle timeout) là quên.
+    return g.compile(checkpointer=_checkpointer)
 
 
 # Compile một lần khi import, mọi lần ask() dùng lại (giống cách tạo boto3 client một lần)
+_checkpointer = InMemorySaver()
 graph = build_graph()
 
 
@@ -92,38 +99,62 @@ graph = build_graph()
 PUBLIC_FIELDS = ("answer", "sources", "route", "order_lookup", "steps", "error")
 
 
-def ask(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
+def ask(question: str, customer_id: str, as_of_date: str | None = None,
+        session_id: str | None = None) -> dict:
     """CỬA VÀO DUY NHẤT của agent: 1 câu hỏi → dict công khai (xem PUBLIC_FIELDS).
 
     customer_id: phía gọi (API sau này) lấy từ danh tính đã đăng nhập, không từ câu hỏi.
     as_of_date: "hôm nay" dạng YYYY-MM-DD; None → AS_OF_DATE trong .env → ngày thật.
+    session_id: mã cuộc hội thoại (trên Runtime: header session). Cùng session_id + cùng khách →
+        nhớ các lượt trước; None → không nhớ (mỗi câu độc lập, như trước Day 62).
     Trường nào không có trong lần chạy (vd route ["policy"] → không có order_lookup) thì vắng mặt.
     """
-    state = run_graph(question, customer_id, as_of_date)
-    return {k: state[k] for k in PUBLIC_FIELDS if k in state}
+    state = run_graph(question, customer_id, as_of_date, session_id)
+    # None = key theo lượt đã reset nhưng lượt này không ghi (vd không chạy order_node) → coi như vắng
+    return {k: state[k] for k in PUBLIC_FIELDS if state.get(k) is not None}
 
 
-def run_graph(question: str, customer_id: str, as_of_date: str | None = None) -> dict:
+def thread_id_for(customer_id: str, session_id: str) -> str:
+    """Khoá hội thoại trong checkpointer = khách + session.
+
+    AgentCore Runtime KHÔNG ràng buộc session với khách (docs: "AgentCore does not enforce
+    session-to-user mappings"). Ghép customer_id vào khoá: khách khác gửi lại session id này cũng
+    chỉ thấy State trắng, không đọc được lịch sử của người khác — lớp phòng thủ thứ hai sau backend.
+    """
+    return f"{customer_id}:{session_id}"
+
+
+def run_graph(question: str, customer_id: str, as_of_date: str | None = None,
+              session_id: str | None = None) -> dict:
     """Chạy graph, trả NGUYÊN State cuối (có order_data, policy_hits...) — cho debug và test.
 
     Code gọi từ bên ngoài (API, eval) dùng ask(), không dùng hàm này.
     """
-    initial = {
+    inputs = {
         "question": question,
         "customer_id": customer_id,
         "as_of_date": as_of_date or AS_OF_DATE or date.today().isoformat(),
-        "steps": 0,   # điểm xuất phát cho reducer operator.add
     }
+    # Mỗi lượt bắt đầu sạch: reset mọi key theo lượt + đếm steps lại từ 0. Overwrite bỏ qua reducer
+    # operator.add (truyền 0 thường thì chỉ cộng thêm 0). history KHÔNG reset → được nhớ.
+    initial = {**inputs, **dict.fromkeys(TURN_KEYS), "steps": Overwrite(0)}
+    # Không có session → thread dùng một lần rồi xoá (có checkpointer thì LangGraph bắt buộc thread_id;
+    # không xoá thì RAM giữ mãi State của mọi câu hỏi lẻ)
+    thread_id = thread_id_for(customer_id, session_id or f"once-{uuid.uuid4().hex}")
+    config = {"recursion_limit": RECURSION_LIMIT, "configurable": {"thread_id": thread_id}}
     try:
-        return graph.invoke(initial, config={"recursion_limit": RECURSION_LIMIT})
+        return graph.invoke(initial, config=config)
     except GraphRecursionError:
         # Hai tầng phanh (Day 56): recursion_limit là phanh CỨNG của LangGraph — ném exception.
         # Bắt ở đây để thoát LỊCH SỰ: khách nhận câu "hệ thống bận", log cảnh báo để mình biết
         # có vòng lặp bất thường (không log nội dung câu hỏi). Tầng mềm — conditional edge kiểm
         # `steps < N` để tự thoát kèm câu trả lời — chỉ cần khi graph có vòng lặp.
         log.warning("graph stopped: recursion_limit=%d exceeded", RECURSION_LIMIT)
-        return {**initial, "answer": _BUSY[question_language(question)], "sources": [],
-                "error": "recursion_limit"}
+        return {**inputs, "answer": _BUSY[question_language(question)], "sources": [],
+                "error": "recursion_limit", "steps": 0}
+    finally:
+        if session_id is None:
+            _checkpointer.delete_thread(thread_id)
 
 
 def main():
@@ -137,7 +168,7 @@ def main():
         logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 
     out = run_graph(args.question, args.customer, args.as_of)   # nguyên State để in ORDER khi debug
-    print(f"ROUTE: {out.get('route')}   ORDER_LOOKUP: {out.get('order_lookup', '-')}   "
+    print(f"ROUTE: {out.get('route')}   ORDER_LOOKUP: {out.get('order_lookup') or '-'}   "
           f"STEPS: {out['steps']}")
     if out.get("order_data"):
         print("ORDER:", json.dumps(out["order_data"], ensure_ascii=False))

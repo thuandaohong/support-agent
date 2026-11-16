@@ -31,10 +31,10 @@ graph TD;
 
 | Node | Dùng LLM? | Đọc | Ghi |
 |---|---|---|---|
-| `supervisor` | Có (Nova Lite, temp 0) | `question` | `route`, `order_id` |
+| `supervisor` | Có (Nova Lite, temp 0) | `question`, `history` (3 câu hỏi gần nhất) | `route`, `order_id` (câu hỏi → con số trơn sau khi bot xin mã → mã của lượt trước) |
 | `policy` | Không | `question` | `policy_hits` |
 | `order` | Không | `order_id`, `customer_id`, `as_of_date` | `order_data` (+ `return_check`, `warranty_check` từ `agents/rules.py`), `order_lookup` |
-| `writer` | Có (Nova Lite, temp 0.2) — trừ 2 ca trả câu cố định: route rỗng, và `no_id` không có đoạn chính sách | tất cả ở trên | `answer`, `sources` |
+| `writer` | Có (Nova Lite, temp 0.2) — trừ 3 ca trả câu cố định: route rỗng, nguồn hỏng (`*_lookup="error"`), và `no_id` không có đoạn chính sách | tất cả ở trên + `history` (3 lượt) | `answer`, `sources`, `history` (+1 lượt, MỌI nhánh) |
 
 Mọi node trả `steps: 1`, reducer cộng dồn: cả hai nhánh = 4, một nhánh = 3, không cần nguồn (chào hỏi / lạc đề) = 2.
 
@@ -228,3 +228,21 @@ flowchart TD
 Dữ liệu **không bao giờ đi qua LLM**: `customer_id` (đi thẳng ask → get_order) và các con số
 eligible/thời hạn (rules.py tính, LLM chỉ đọc lại). Đó là hai thứ quyết định quyền truy cập và lời
 hứa với khách.
+
+## Trí nhớ hội thoại (Day 62)
+
+Graph compile với checkpointer `InMemorySaver`. Mỗi lần gọi:
+
+```
+ask(question, customer_id, session_id)
+  thread_id = "customer_id:session_id"          (không có session → thread dùng 1 lần rồi xoá)
+  input = {question, customer_id, as_of_date,
+           mọi TURN_KEYS = None, steps = Overwrite(0)}   ← lượt mới bắt đầu sạch
+  checkpointer nạp State cũ của thread → chỉ `history` còn giá trị (reducer giữ 6 lượt)
+```
+
+- Key theo lượt (`TURN_KEYS` trong `agents/state.py`) **phải** reset: checkpointer giữ mọi key,
+  input không ghi key nào thì giá trị lượt trước còn nguyên (vd `order_lookup="error"` → "đang bận" mãi).
+- `steps` có reducer cộng → truyền `0` không reset được, phải `Overwrite(0)`.
+- Trên AgentCore Runtime: session id đến từ header `X-Amzn-Bedrock-AgentCore-Runtime-Session-Id`;
+  cùng session = cùng microVM = cùng RAM. Session rảnh quá `IDLE_TIMEOUT` (300 s) → microVM dừng → quên.

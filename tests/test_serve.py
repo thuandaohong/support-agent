@@ -11,8 +11,8 @@ client = TestClient(serve.app)
 def fake_ask(monkeypatch):
     calls = []
 
-    def fake(question, customer_id, as_of_date=None):
-        calls.append((question, customer_id, as_of_date))
+    def fake(question, customer_id, as_of_date=None, session_id=None):
+        calls.append((question, customer_id, as_of_date, session_id))
         return {"answer": "ok", "sources": [], "route": [], "steps": 2}
 
     monkeypatch.setattr(serve, "ask", fake)
@@ -28,7 +28,7 @@ def test_invocation_returns_public_contract(fake_ask):
     r = client.post("/invocations", json={"question": "  Xin chào  ", "customer_id": "C003"})
     assert r.status_code == 200
     assert r.json() == {"answer": "ok", "sources": [], "route": [], "steps": 2}
-    assert fake_ask == [("Xin chào", "C003", None)]   # đã strip; as_of_date không đến từ payload
+    assert fake_ask == [("Xin chào", "C003", None, None)]   # đã strip; as_of_date không đến từ payload
 
 
 @pytest.mark.parametrize("payload", [
@@ -56,3 +56,29 @@ def test_internal_error_does_not_leak_details(monkeypatch):
 
 def test_api_docs_are_disabled():
     assert client.get("/docs").status_code == 404 and client.get("/openapi.json").status_code == 404
+
+
+def test_session_header_is_passed_to_ask(fake_ask, caplog):
+    sid = "sess-" + "a" * 40
+    with caplog.at_level("INFO"):
+        r = client.post("/invocations", json={"question": "Xin chào", "customer_id": "C003"},
+                        headers={serve.SESSION_HEADER: sid})
+    assert r.status_code == 200 and fake_ask[-1][3] == sid
+    assert "has_session=yes" in caplog.text and sid not in caplog.text   # không log giá trị session
+
+
+def test_oversized_session_header_rejected(fake_ask):
+    r = client.post("/invocations", json={"question": "Xin chào", "customer_id": "C003"},
+                    headers={serve.SESSION_HEADER: "x" * 257})
+    assert r.status_code == 422 and fake_ask == []
+
+
+def test_two_turns_same_session_remember_through_http(fake_aws):
+    # Không thay ask: đi hết serve.py → graph → checkpointer (LLM / tool vẫn giả)
+    h = {serve.SESSION_HEADER: "sess-" + "b" * 40}
+    client.post("/invocations", json={"question": "Đơn #1003 còn đổi trả được không?", "customer_id": "C003"},
+                headers=h)
+    r = client.post("/invocations", json={"question": "Thế bảo hành thì sao?", "customer_id": "C003"}, headers=h)
+    assert r.json()["order_lookup"] == "found"           # mã #1003 lấy từ lượt trước
+    r = client.post("/invocations", json={"question": "Thế bảo hành thì sao?", "customer_id": "C003"})
+    assert r.json()["order_lookup"] == "no_id"           # không có header → không nhớ
