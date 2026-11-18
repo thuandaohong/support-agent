@@ -34,3 +34,6 @@ frontend/dist/
 tfplan
 plan.txt
 crash.log
+
+# Day 65 — id tra theo tên để import (import-ids.sh), không commit
+infra/terraform/live/imports.auto.tfvars.json
