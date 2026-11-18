@@ -164,3 +164,60 @@ import {
   to = module.auth.aws_cognito_user_pool_client.web
   id = "${var.import_ids["pool"]}/${var.import_ids["client"]}"
 }
+
+# ---------- module.lambda_bridge ----------
+import {
+  to = module.lambda_bridge.aws_iam_role.this
+  id = "support-chat-bridge"
+}
+
+import {
+  to = module.lambda_bridge.aws_iam_role_policy.this
+  id = "support-chat-bridge:support-chat-bridge-perms"
+}
+
+import {
+  to = module.lambda_bridge.aws_cloudwatch_log_group.this
+  id = "/aws/lambda/support-chat-bridge"
+}
+
+import {
+  to = module.lambda_bridge.aws_lambda_function.this
+  id = "support-chat-bridge"
+}
+
+# ---------- module.web_api ----------
+import {
+  to = module.web_api.aws_apigatewayv2_api.this
+  id = var.import_ids["api"]
+}
+
+import {
+  to = module.web_api.aws_apigatewayv2_authorizer.jwt
+  id = "${var.import_ids["api"]}/${var.import_ids["authorizer"]}"
+}
+
+import {
+  to = module.web_api.aws_apigatewayv2_integration.bridge
+  id = "${var.import_ids["api"]}/${var.import_ids["integration"]}"
+}
+
+import {
+  to = module.web_api.aws_apigatewayv2_route.chat
+  id = "${var.import_ids["api"]}/${var.import_ids["route"]}"
+}
+
+import {
+  to = module.web_api.aws_cloudwatch_log_group.access
+  id = "/aws/apigateway/${var.api_name}"
+}
+
+import {
+  to = module.web_api.aws_apigatewayv2_stage.default
+  id = "${var.import_ids["api"]}/$default"
+}
+
+import {
+  to = module.web_api.aws_lambda_permission.apigw
+  id = "support-chat-bridge/apigw-${var.api_name}-post-chat"
+}

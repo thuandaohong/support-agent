@@ -109,3 +109,40 @@ module "auth" {
   pool_name   = var.pool_name
   client_name = var.client_name
 }
+
+# ---------- Web: Bridge Lambda + HTTP API (Day 64) ----------
+module "lambda_bridge" {
+  source             = "../modules/lambda_function"
+  function_name      = "support-chat-bridge"
+  description        = "Bridge web to AgentCore Runtime (support-agent)"
+  role_name          = "support-chat-bridge"
+  role_description   = "Bridge Lambda support-chat-bridge (web to AgentCore Runtime)"
+  source_file        = "${path.root}/../../../lambdas/chat_bridge/handler.py"
+  timeout            = 29 # < 30 s của HTTP API
+  environment        = { AGENT_RUNTIME_ARN = module.runtime.agent_runtime_arn }
+  log_retention_days = var.log_retention_days
+  policy_statements = [{
+    sid     = "InvokeOneRuntimeOnly"
+    actions = ["bedrock-agentcore:InvokeAgentRuntime"]
+    # Đo Day 64: phải có CẢ ARN Runtime lẫn endpoint DEFAULT, thiếu một là AccessDenied
+    resources = [
+      module.runtime.agent_runtime_arn,
+      "${module.runtime.agent_runtime_arn}/runtime-endpoint/DEFAULT",
+    ]
+  }]
+}
+
+module "web_api" {
+  source               = "../modules/web_api"
+  name                 = var.api_name
+  allowed_origin       = var.allowed_origin
+  issuer               = module.auth.issuer
+  client_id            = module.auth.client_id
+  client_name          = var.client_name
+  lambda_arn           = module.lambda_bridge.function_arn
+  lambda_function_name = module.lambda_bridge.function_name
+  throttle_rate        = var.throttle_rate
+  throttle_burst       = var.throttle_burst
+  log_retention_days   = var.log_retention_days
+  account_id           = local.account_id
+}
