@@ -1,5 +1,7 @@
 # infra/auth: Cognito cho NGƯỜI DÙNG (Day 63)
 
+> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+
 Trả lời câu "**ai đang hỏi?**" (AuthN). Khách đăng nhập và nhận **access token** (JWT do pool ký
 RS256). Backend kiểm token rồi mới lấy `customer_id` từ đó. Trước Day 63, `customer_id` là chuỗi
 người gọi tự điền.

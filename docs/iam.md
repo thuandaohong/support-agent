@@ -27,8 +27,13 @@ Thêm một luật riêng: trust của role dịch vụ AgentCore/Bedrock phải
 | `support-search-policy-lambda` | `lambda.amazonaws.com` | `bedrock:Retrieve` KB `support-policy-kb` · log group của chính nó |
 | `support-chat-bridge` (Day 64) | `lambda.amazonaws.com` | `bedrock-agentcore:InvokeAgentRuntime` trên ARN runtime **và** `…/runtime-endpoint/DEFAULT` của `support_agent` (đo thật: thiếu một trong hai → AccessDenied) · log group của chính nó |
 | KB role (console tạo) | `bedrock`, SourceAccount, SourceArn `knowledge-base/*` | S3 List/Get bucket tài liệu · PutMetricData (namespace KB) |
+| `support-agent-tf-plan` (Day 65, bootstrap) | OIDC GitHub, `aud = sts.amazonaws.com`, `sub = repo:…support-agent…:pull_request` (theo id bất biến) | `ReadOnlyAccess` · đọc AgentCore · ghi **đúng** file `live.tfstate.tflock` |
+| `support-agent-tf-apply` (Day 65, bootstrap) | OIDC GitHub, `sub = …:environment:production` (chỉ sau Approve) | `PowerUserAccess` · `iam:*` chỉ trên `role/support-*` + role/policy KB `_1uz0d` · **Deny** sửa `role/support-agent-tf-*` (không tự nới quyền) |
 
 Ghi chú:
+- **6 role ứng dụng nay do Terraform quản** (`infra/terraform/modules/*`, Day 65): policy viết bằng
+  `aws_iam_policy_document`, resource tham chiếu ARN của module khác thay vì `.json.tpl` + `envsubst`.
+  2 role CI do `infra/terraform/bootstrap/` quản (pipeline không tự sửa quyền của chính nó).
 - **KB loại MANAGED** (embedding và vector store do Bedrock quản lý), nên role KB **không** cần quyền gọi
   model embed hay quyền vào vector store.
 - **Trust của 2 Lambda không có điều kiện:** với `lambda.amazonaws.com`, đây là mẫu execution role chuẩn

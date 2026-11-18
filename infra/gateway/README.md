@@ -1,5 +1,7 @@
 # infra/gateway — tool get_order + search_policy qua AgentCore Gateway (tạo bằng CLI, Day 60–61)
 
+> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+
 Đưa hai tool ra khỏi container agent: agent gọi **AgentCore Gateway** (MCP server do AWS quản lý)
 → Gateway gọi Lambda theo tên tool:
 
