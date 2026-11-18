@@ -132,3 +132,24 @@ import {
   to = module.gateway.aws_bedrockagentcore_gateway_target.this["policies"]
   id = "${var.import_ids["gateway"]},${var.import_ids["target_policies"]}"
 }
+
+# ---------- module.runtime ----------
+import {
+  to = module.runtime.aws_iam_role.runtime
+  id = "support-agent-runtime"
+}
+
+import {
+  to = module.runtime.aws_iam_role_policy.runtime
+  id = "support-agent-runtime:support-agent-runtime-perms"
+}
+
+import {
+  to = module.runtime.aws_bedrockagentcore_agent_runtime.this
+  id = var.import_ids["runtime"]
+}
+
+import {
+  to = module.runtime.aws_cloudwatch_log_group.runtime
+  id = "/aws/bedrock-agentcore/runtimes/${var.import_ids["runtime"]}-DEFAULT"
+}

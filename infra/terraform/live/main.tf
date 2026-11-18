@@ -75,3 +75,30 @@ module "gateway" {
     }
   }
 }
+
+# ---------- AgentCore Runtime (Day 58–62) ----------
+module "runtime" {
+  source             = "../modules/runtime"
+  name               = var.runtime_name
+  role_name          = "support-agent-runtime"
+  ecr_repository_url = module.data.ecr_repository_url
+  ecr_repository_arn = module.data.ecr_repository_arn
+  image_tag          = var.image_tag
+  model_id           = var.model_id
+  gateway_arn        = module.gateway.gateway_arn
+  idle_timeout       = var.idle_timeout
+  max_lifetime       = var.max_lifetime
+  log_retention_days = var.log_retention_days
+  account_id         = local.account_id
+  region             = local.region
+  environment = merge(
+    {
+      GATEWAY_URL     = module.gateway.gateway_url # Gateway tạo lại → URL mới tự vào đây
+      ORDER_BACKEND   = "gateway"
+      POLICY_BACKEND  = "gateway"
+      ROUTER_MODEL_ID = var.model_id
+      WRITER_MODEL_ID = var.model_id
+    },
+    var.as_of_date == "" ? {} : { AS_OF_DATE = var.as_of_date },
+  )
+}
