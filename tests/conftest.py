@@ -18,6 +18,7 @@ if os.environ.get("RUN_INTEGRATION") == "1":
 os.environ.setdefault("AWS_REGION", "us-east-1")
 os.environ.setdefault("POLICY_KB_ID", "TEST_KB")
 os.environ.setdefault("ORDERS_TABLE", "test-orders")
+os.environ.setdefault("AGENT_RUNTIME_ARN", "arn:aws:bedrock-agentcore:us-east-1:ACCOUNT:runtime/test_agent-TEST")   # Day 64 bridge
 
 
 import pytest

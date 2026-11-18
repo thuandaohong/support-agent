@@ -8,7 +8,7 @@ trong phạm vi quyền của tool đó. Kiểm bằng máy, chạy lại đư�
 ```
 
 Script gồm 3 phần (logic ở `scripts/iam_audit.py`):
-1. **Bản đồ:** trust và permission của 5 role. Account id che thành `<ACC>`, KB id che thành `<KB_ID>`.
+1. **Bản đồ:** trust và permission của 6 role. Account id che thành `<ACC>`, KB id che thành `<KB_ID>`.
 2. **IAM Access Analyzer `validate-policy`:** permission policy (`IDENTITY_POLICY`) và trust
    (`AWS::IAM::AssumeRolePolicyDocument`). Có `ERROR` hoặc `SECURITY_WARNING` thì fail.
 3. **Ma trận simulate:** mỗi ô là 1 hành động × 1 resource. Gộp nhiều resource vào một lần simulate
@@ -17,7 +17,7 @@ Script gồm 3 phần (logic ở `scripts/iam_audit.py`):
 Thêm một luật riêng: trust của role dịch vụ AgentCore/Bedrock phải có `aws:SourceAccount` và
 `aws:SourceArn` hẹp, để chống *confused deputy*. `SourceArn` kết thúc bằng `:*` bị coi là quá rộng.
 
-## 5 role
+## 6 role
 
 | Role | Ai được mượn (trust) | Được làm gì |
 |---|---|---|
@@ -25,6 +25,7 @@ Thêm một luật riêng: trust của role dịch vụ AgentCore/Bedrock phải
 | `support-gateway` | `bedrock-agentcore`, SourceAccount, SourceArn `gateway/support-gateway-*` | `lambda:InvokeFunction` đúng 2 ARN |
 | `support-get-order-lambda` | `lambda.amazonaws.com` | `dynamodb:GetItem` bảng `support-orders` · log group của chính nó |
 | `support-search-policy-lambda` | `lambda.amazonaws.com` | `bedrock:Retrieve` KB `support-policy-kb` · log group của chính nó |
+| `support-chat-bridge` (Day 64) | `lambda.amazonaws.com` | `bedrock-agentcore:InvokeAgentRuntime` trên ARN runtime **và** `…/runtime-endpoint/DEFAULT` của `support_agent` (đo thật: thiếu một trong hai → AccessDenied) · log group của chính nó |
 | KB role (console tạo) | `bedrock`, SourceAccount, SourceArn `knowledge-base/*` | S3 List/Get bucket tài liệu · PutMetricData (namespace KB) |
 
 Ghi chú:
@@ -44,6 +45,7 @@ Ghi chú:
 | lambda get_order | GetItem `support-orders` | PutItem · Scan · Query · GetItem bảng khác · Retrieve |
 | lambda search_policy | Retrieve KB support | Retrieve KB khác · GetItem · InvokeModel |
 | KB | GetObject bucket tài liệu | PutObject · GetObject bucket khác |
+| bridge (Day 64) | InvokeAgentRuntime runtime + endpoint DEFAULT | InvokeAgentRuntime Runtime khác · InvokeGateway · InvokeModel · GetItem · Retrieve |
 
 ## Kết quả đo (2026-11-16)
 
@@ -51,6 +53,7 @@ Ghi chú:
 |---|---|---|---|
 | Trước khi siết | 26/26 | 0 finding (5 role) | 1: trust runtime `SourceArn = arn:aws:bedrock-agentcore:us-east-1:<ACC>:*` (mọi tài nguyên AgentCore trong account mượn được role) |
 | Sau khi siết | 26/26 | 0 finding | 0 → exit 0 |
+| Day 64: thêm role Bridge | 33/33 | 0 finding | 0 → exit 0 |
 
 Sau khi siết trust, Runtime vẫn mượn được role khi tạo microVM mới: chạy `--cases g01 g07` và
 `--chat c01` trong session mới đều đúng, rồi `--cases --auth` 18/18.

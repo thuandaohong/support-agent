@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Day 63: rà IAM của cả hệ, CHỈ ĐỌC (không sửa gì trên AWS).
-#   bản đồ quyền 5 role + IAM Access Analyzer + ma trận simulate được/chặn → lệch thì exit 1
+#   bản đồ quyền 6 role + IAM Access Analyzer + ma trận simulate được/chặn → lệch thì exit 1
 # Tên role / bảng / model / Lambda lấy từ infra/runtime/runtime.env + infra/gateway/gateway.env.
 # Logic ở scripts/iam_audit.py; script này chỉ nạp biến.
 #   ./infra/iam-audit.sh
