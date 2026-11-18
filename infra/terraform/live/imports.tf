@@ -106,3 +106,29 @@ import {
   to = module.lambda_search_policy.aws_lambda_function.this
   id = "support-search-policy"
 }
+
+# ---------- module.gateway ----------
+import {
+  to = module.gateway.aws_iam_role.gateway
+  id = "support-gateway"
+}
+
+import {
+  to = module.gateway.aws_iam_role_policy.gateway
+  id = "support-gateway:support-gateway-perms"
+}
+
+import {
+  to = module.gateway.aws_bedrockagentcore_gateway.this
+  id = var.import_ids["gateway"]
+}
+
+import {
+  to = module.gateway.aws_bedrockagentcore_gateway_target.this["orders"]
+  id = "${var.import_ids["gateway"]},${var.import_ids["target_orders"]}"
+}
+
+import {
+  to = module.gateway.aws_bedrockagentcore_gateway_target.this["policies"]
+  id = "${var.import_ids["gateway"]},${var.import_ids["target_policies"]}"
+}

@@ -53,3 +53,25 @@ module "lambda_search_policy" {
     resources = [module.knowledge_base.arn]
   }]
 }
+
+# ---------- Gateway MCP (Day 60–61) ----------
+module "gateway" {
+  source      = "../modules/gateway"
+  name        = var.gateway_name
+  description = "MCP tools cho support-agent (get_order)"
+  role_name   = "support-gateway"
+  account_id  = local.account_id
+  region      = local.region
+  targets = {
+    orders = {
+      lambda_arn       = module.lambda_get_order.function_arn
+      description      = "Lambda support-get-order"
+      tool_schema_file = "${path.root}/../../gateway/get_order.tool.json"
+    }
+    policies = {
+      lambda_arn       = module.lambda_search_policy.function_arn
+      description      = "Lambda support-search-policy"
+      tool_schema_file = "${path.root}/../../gateway/search_policy.tool.json"
+    }
+  }
+}
