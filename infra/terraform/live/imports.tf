@@ -29,3 +29,39 @@ import {
   to = module.data.aws_ecr_lifecycle_policy.agent
   id = var.ecr_repo
 }
+
+# ---------- module.knowledge_base ----------
+import {
+  to = module.knowledge_base.aws_iam_role.kb
+  id = "AmazonBedrockExecutionRoleForKnowledgeBase_${var.kb_role_suffix}"
+}
+
+import {
+  to = module.knowledge_base.aws_iam_policy.s3
+  id = "arn:aws:iam::${local.account_id}:policy/service-role/AmazonBedrockS3PolicyForKnowledgeBase_${var.kb_role_suffix}"
+}
+
+import {
+  to = module.knowledge_base.aws_iam_policy.cloudwatch
+  id = "arn:aws:iam::${local.account_id}:policy/service-role/AmazonBedrockCloudWatchPolicyForKnowledgeBase_${var.kb_role_suffix}"
+}
+
+import {
+  to = module.knowledge_base.aws_iam_role_policy_attachment.s3
+  id = "AmazonBedrockExecutionRoleForKnowledgeBase_${var.kb_role_suffix}/arn:aws:iam::${local.account_id}:policy/service-role/AmazonBedrockS3PolicyForKnowledgeBase_${var.kb_role_suffix}"
+}
+
+import {
+  to = module.knowledge_base.aws_iam_role_policy_attachment.cloudwatch
+  id = "AmazonBedrockExecutionRoleForKnowledgeBase_${var.kb_role_suffix}/arn:aws:iam::${local.account_id}:policy/service-role/AmazonBedrockCloudWatchPolicyForKnowledgeBase_${var.kb_role_suffix}"
+}
+
+import {
+  to = module.knowledge_base.aws_bedrockagent_knowledge_base.this
+  id = var.import_ids["kb"]
+}
+
+import {
+  to = module.knowledge_base.aws_bedrockagent_data_source.policies
+  id = "${var.import_ids["kb_ds"]},${var.import_ids["kb"]}"
+}
