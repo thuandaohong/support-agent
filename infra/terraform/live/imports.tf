@@ -153,3 +153,14 @@ import {
   to = module.runtime.aws_cloudwatch_log_group.runtime
   id = "/aws/bedrock-agentcore/runtimes/${var.import_ids["runtime"]}-DEFAULT"
 }
+
+# ---------- module.auth ----------
+import {
+  to = module.auth.aws_cognito_user_pool.this
+  id = var.import_ids["pool"]
+}
+
+import {
+  to = module.auth.aws_cognito_user_pool_client.web
+  id = "${var.import_ids["pool"]}/${var.import_ids["client"]}"
+}

@@ -102,3 +102,10 @@ module "runtime" {
     var.as_of_date == "" ? {} : { AS_OF_DATE = var.as_of_date },
   )
 }
+
+# ---------- Cognito cho người dùng (Day 63) ----------
+module "auth" {
+  source      = "../modules/auth"
+  pool_name   = var.pool_name
+  client_name = var.client_name
+}
