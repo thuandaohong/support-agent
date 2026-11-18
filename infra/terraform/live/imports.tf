@@ -65,3 +65,44 @@ import {
   to = module.knowledge_base.aws_bedrockagent_data_source.policies
   id = "${var.import_ids["kb_ds"]},${var.import_ids["kb"]}"
 }
+
+# ---------- module.lambda_get_order / module.lambda_search_policy ----------
+import {
+  to = module.lambda_get_order.aws_iam_role.this
+  id = "support-get-order-lambda"
+}
+
+import {
+  to = module.lambda_get_order.aws_iam_role_policy.this
+  id = "support-get-order-lambda:support-get-order-lambda-perms"
+}
+
+import {
+  to = module.lambda_get_order.aws_cloudwatch_log_group.this
+  id = "/aws/lambda/support-get-order"
+}
+
+import {
+  to = module.lambda_get_order.aws_lambda_function.this
+  id = "support-get-order"
+}
+
+import {
+  to = module.lambda_search_policy.aws_iam_role.this
+  id = "support-search-policy-lambda"
+}
+
+import {
+  to = module.lambda_search_policy.aws_iam_role_policy.this
+  id = "support-search-policy-lambda:support-search-policy-lambda-perms"
+}
+
+import {
+  to = module.lambda_search_policy.aws_cloudwatch_log_group.this
+  id = "/aws/lambda/support-search-policy"
+}
+
+import {
+  to = module.lambda_search_policy.aws_lambda_function.this
+  id = "support-search-policy"
+}

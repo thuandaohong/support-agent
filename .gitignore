@@ -37,3 +37,6 @@ crash.log
 
 # Day 65 — id tra theo tên để import (import-ids.sh), không commit
 infra/terraform/live/imports.auto.tfvars.json
+
+# Day 65 — zip Lambda do archive_file sinh
+infra/terraform/live/.build/
