@@ -25,3 +25,12 @@ infra/api/api.env
 frontend/.env.local
 frontend/node_modules/
 frontend/dist/
+
+# Day 65 — Terraform: state nằm trên S3, không bao giờ ở repo. Commit .terraform.lock.hcl (ghim provider)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+plan.txt
+crash.log
