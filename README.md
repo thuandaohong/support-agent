@@ -100,8 +100,7 @@ docker push $REG/support-agent:$(git rev-parse --short HEAD)
 khách) gọi được, không mở cho trình duyệt. `as_of_date` không nhận từ payload (sửa được kết quả đổi trả).
 
 ECR repo `support-agent` tạo bằng CLI (Day 58): scan on push, tag IMMUTABLE, AES256, lifecycle
-(xoá image không tag sau 1 ngày, giữ 10 image gần nhất). **Cần `terraform import`** khi Terraform hoá
-(cùng với bảng DynamoDB `support-orders`).
+(xoá image không tag sau 1 ngày, giữ 10 image gần nhất). Từ Day 65 do Terraform quản (`modules/data`).
 
 ## Chạy trên AgentCore Runtime (Day 59)
 
@@ -199,7 +198,7 @@ Thay đổi hạ tầng đi đường **PR → plan (comment tóm tắt, không 
 GitHub Actions + OIDC; không ai apply `live/` ở máy.
 
 ```bash
-cd infra/terraform/live && ./import-ids.sh && terraform init && terraform plan   # chỉ đọc
+cd infra/terraform/live && terraform init && terraform plan   # chỉ đọc
 ```
 
 ## Test (kim tự tháp)

@@ -1,7 +1,7 @@
 # Terraform (Day 65)
 
 Toàn bộ hạ tầng AWS của support-agent nằm trong Terraform. Các resource chạy từ Day 51–64 (tạo bằng
-CLI/console) được **nhận vào state bằng `import {}`**, không tạo lại: 50 đơn, 8 user, KB id, URL Gateway,
+CLI/console) đã được **nhận vào state bằng `import {}`** (PR #9, khối import đã xoá sau khi apply), không tạo lại: 50 đơn, 8 user, KB id, URL Gateway,
 ARN Runtime, pool id, URL API đều giữ nguyên.
 
 ```
@@ -9,8 +9,6 @@ infra/terraform/
 ├── bootstrap/        apply Ở MÁY 1 lần — bucket state (00-state-bucket.sh) + role OIDC tf-plan / tf-apply
 ├── live/             root chính — CHỈ GitHub Actions apply
 │   ├── main.tf       nối 8 module: output module này = input module kia
-│   ├── imports.tf    42 khối import {} (xoá sau khi apply)
-│   ├── import-ids.sh tra id ngẫu nhiên theo tên → imports.auto.tfvars.json (gitignore)
 │   └── terraform.tfvars  tên, origin, throttle, image_tag… (không bí mật, không id)
 └── modules/
     ├── data/             DynamoDB · S3 chính sách · ECR (+ lifecycle)         🔒 prevent_destroy
@@ -32,7 +30,7 @@ data ──ecr_url────────────────────�
 
 ## Đường thay đổi
 
-1. Nhánh mới, sửa `.tf` → `cd infra/terraform/live && ./import-ids.sh && terraform plan` (ở máy, chỉ đọc).
+1. Nhánh mới, sửa `.tf` → `cd infra/terraform/live && terraform plan` (ở máy, chỉ đọc).
 2. Mở PR → job `plan` (role `support-agent-tf-plan`, ReadOnly) comment **bản tóm tắt** vào PR.
 3. Đọc tóm tắt: `delete` / `replace` phải bằng 0 — job tự đỏ nếu không (`ALLOW_DESTROY=1` để cố ý xoá).
 4. Merge → job `apply` dừng ở environment `production` → bấm **Approve** → role `support-agent-tf-apply` plan lại,

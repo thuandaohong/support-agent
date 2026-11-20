@@ -105,10 +105,3 @@ variable "throttle_rate" {
 variable "throttle_burst" {
   type = number
 }
-
-# ---------- import (Day 65, xoá cùng imports.tf) ----------
-variable "import_ids" {
-  description = "Id ngẫu nhiên của resource đang chạy, do import-ids.sh tra theo tên (file gitignore)"
-  type        = map(string)
-  default     = {}
-}
