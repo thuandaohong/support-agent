@@ -49,7 +49,8 @@ Dự kiến (Phase D+):
 | `lambdas/` | Lambda `get_order`, `search_policy` đứng sau AgentCore Gateway; `chat_bridge` nối web → Runtime (không vào image agent) |
 | `frontend/` | Web chat React + đăng nhập Cognito (Day 64) |
 | `eval/` | Golden set + eval harness |
-| `infra/` | Terraform |
+| `infra/terraform/` | Terraform: `bootstrap/` (role CI) · `live/` + `modules/` (toàn bộ hạ tầng, Day 65) |
+| `infra/{runtime,gateway,auth,api}/` | Script vận hành (invoke, logs, user test…); script tạo cũ thay bằng Terraform |
 | `sample-data/` | Dữ liệu synthetic — xem [sample-data/README.md](sample-data/README.md) |
 | `docs/` | Sơ đồ graph, ghi chú |
 
@@ -188,6 +189,17 @@ mã khách, nên khách khác dùng lại session id cũng không vào chung mic
 ./infra/api/01-bridge-lambda.sh && ./infra/api/02-http-api.sh && ./infra/api/03-frontend-env.sh
 python scripts/api_smoke.py --throttle          # 11 ca qua API thật
 cd frontend && npm install && npm run dev       # http://localhost:5173
+```
+
+## Terraform (Day 65)
+
+Mọi resource AWS (DynamoDB, S3, ECR, KB, 3 Lambda, Gateway, Runtime, Cognito, HTTP API, 8 role) nằm trong
+[infra/terraform/](infra/terraform/README.md). Resource chạy từ Day 51–64 được **import**, không tạo lại.
+Thay đổi hạ tầng đi đường **PR → plan (comment tóm tắt, không lộ id) → merge → Approve → apply** bằng
+GitHub Actions + OIDC; không ai apply `live/` ở máy.
+
+```bash
+cd infra/terraform/live && ./import-ids.sh && terraform init && terraform plan   # chỉ đọc
 ```
 
 ## Test (kim tự tháp)

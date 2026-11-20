@@ -1,0 +1,155 @@
+# Day 65 — mọi thay đổi hạ tầng đi đường: PR → plan (comment tóm tắt) → merge → Approve → apply.
+# Không ai apply live/ ở máy. Role OIDC do infra/terraform/bootstrap tạo (không access key).
+#
+# Repo PUBLIC: log Actions + comment PR ai cũng đọc được → KHÔNG in output thô của terraform
+# (có account id, pool id, KB id, ARN). Chỉ in bản tóm tắt của scripts/tf_plan_summary.py.
+name: terraform
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/live/**"
+      - "infra/terraform/modules/**"
+      - "infra/gateway/*.tool.json"   # schema tool của Gateway target
+      - "lambdas/**"                  # code Lambda do Terraform zip + deploy
+      - "scripts/tf_plan_summary.py"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/live/**"
+      - "infra/terraform/modules/**"
+      - "infra/gateway/*.tool.json"   # schema tool của Gateway target
+      - "lambdas/**"                  # code Lambda do Terraform zip + deploy
+      - "scripts/tf_plan_summary.py"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:                  # chạy tay apply (chỉ từ main)
+
+permissions:
+  id-token: write        # OIDC
+  contents: read
+  pull-requests: write   # bot ghi tóm tắt plan vào PR
+
+# Không cho 2 lần chạy Terraform chồng nhau (state lock cũng chặn, chặn sớm ở đây gọn hơn)
+concurrency:
+  group: terraform
+  cancel-in-progress: false   # KHÔNG huỷ apply đang chạy dở
+
+env:
+  TF_VERSION: "1.17.0"
+  TF_IN_AUTOMATION: "true"
+  AWS_REGION: us-east-1
+
+jobs:
+  # ---------- PLAN: Pull Request, role CHỈ ĐỌC ----------
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra/terraform/live
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TF_PLAN_ROLE_ARN }}   # support-agent-tf-plan
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false   # wrapper in stdout của terraform ra log → tắt
+
+      - name: Format check
+        run: terraform fmt -check -recursive ..
+
+      - name: Init
+        run: terraform init -input=false -no-color > /dev/null
+
+      - name: Validate
+        run: terraform validate -no-color
+
+      - name: Tra id để import (Day 65, xoá cùng imports.tf)
+        run: ./import-ids.sh
+
+      - name: Plan (output thô KHÔNG ra log)
+        run: |
+          if ! terraform plan -input=false -no-color -lock-timeout=120s -out=tfplan > plan.log 2>&1; then
+            # lỗi: in phần Error, che 12 chữ số account
+            grep -A8 -E "^(Error|│ Error)" plan.log | sed -E 's/[0-9]{12}/<ACC>/g'
+            exit 1
+          fi
+          terraform show -json tfplan > plan.json
+
+      - name: Tóm tắt plan (không giá trị, không id) — đỏ nếu có xoá / tạo lại
+        id: summary
+        run: |
+          set +e
+          python3 ../../../scripts/tf_plan_summary.py < plan.json > summary.md
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          cat summary.md
+
+      - name: Ghi tóm tắt vào PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('infra/terraform/live/summary.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### Terraform plan\n${body}\n\n_Chi tiết giá trị: chạy \`terraform plan\` ở máy (repo public nên không đăng plan thô). Commit ${context.sha.slice(0, 7)}_`,
+            });
+
+      - name: Chặn nếu plan xoá / tạo lại resource
+        if: steps.summary.outputs.code != '0'
+        run: exit 1
+
+  # ---------- APPLY: sau khi merge vào main, chờ Approve, role GHI ----------
+  apply:
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production   # Required reviewers → job dừng chờ bấm Approve
+    defaults:
+      run:
+        working-directory: infra/terraform/live
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TF_APPLY_ROLE_ARN }}  # support-agent-tf-apply
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: Init
+        run: terraform init -input=false -no-color > /dev/null
+
+      - name: Tra id để import (Day 65, xoá cùng imports.tf)
+        run: ./import-ids.sh
+
+      - name: Plan lại + chặn xoá / tạo lại
+        # Apply chạy plan MỚI (main có thể đã đổi sau khi review) → kiểm lại đúng luật như job plan
+        run: |
+          terraform plan -input=false -no-color -lock-timeout=120s -out=tfplan > plan.log 2>&1 \
+            || { grep -A8 -E "^(Error|│ Error)" plan.log | sed -E 's/[0-9]{12}/<ACC>/g'; exit 1; }
+          terraform show -json tfplan | python3 ../../../scripts/tf_plan_summary.py
+
+      - name: Apply đúng plan vừa kiểm (output thô KHÔNG ra log)
+        # -auto-approve không cần: apply file plan đã lưu không hỏi lại
+        run: |
+          if ! terraform apply -input=false -no-color tfplan > apply.log 2>&1; then
+            grep -A8 -E "^(Error|│ Error)" apply.log | sed -E 's/[0-9]{12}/<ACC>/g'
+            exit 1
+          fi
+          grep -E "^Apply complete" apply.log

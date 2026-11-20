@@ -1,5 +1,7 @@
 # infra/api: web chat (Day 64): HTTP API + Bridge Lambda
 
+> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+
 ```
 Trình duyệt (frontend/, đăng nhập Cognito SRP)
   │ POST /chat · Authorization: Bearer <access token> · {question, session_id}

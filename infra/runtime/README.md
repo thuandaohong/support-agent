@@ -1,5 +1,7 @@
 # infra/runtime — AgentCore Runtime (tạo bằng CLI, Day 59)
 
+> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+
 Script tạo / vận hành **IAM execution role** + **AgentCore Runtime** cho `support-agent`.
 Giá trị thật (KB ID, image tag…) nằm trong `runtime.env` — **không commit** (`.gitignore`).
 Account ID không ghi ở đâu cả: script tự lấy bằng `aws sts get-caller-identity`.
