@@ -76,3 +76,5 @@ Rồi trên GitHub: **Settings → Secrets → Actions** thêm `AWS_TF_PLAN_ROLE
 | Lần | Kết quả | Ngày |
 |---|---|---|
 | Plan ở máy sau bước 7 | `42 to import, 0 to add, 11 to change, 0 to destroy` — 6 thêm tag `project`, 2 chỉ khác khoảng trắng JSON, 3 Lambda deploy lại code giống hệt (đã so byte với code đang chạy) | 2026-11-18 |
+| CI apply (PR #9, Approve) | 42 import · 11 update · 0 add/destroy. Sau đó plan **No changes**; state 42 resource + 17 data source; iam-audit 33/33 · api_smoke 11/11 · Runtime cases 18/18 | 2026-11-20 |
+| Dọn import + script cũ (bước 9b) | plan vẫn **No changes** | 2026-11-20 |

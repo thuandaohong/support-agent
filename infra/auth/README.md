@@ -1,6 +1,6 @@
 # infra/auth: Cognito cho NGƯỜI DÙNG (Day 63)
 
-> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+> **Day 65:** resource do Terraform quản ([infra/terraform/modules/auth](../terraform/README.md)) — đổi gì thì sửa `.tf` / `terraform.tfvars` → PR → plan → merge → Approve. Script tạo / `99-destroy.sh` đã xoá; ở đây chỉ còn script vận hành / test.
 
 Trả lời câu "**ai đang hỏi?**" (AuthN). Khách đăng nhập và nhận **access token** (JWT do pool ký
 RS256). Backend kiểm token rồi mới lấy `customer_id` từ đó. Trước Day 63, `customer_id` là chuỗi
@@ -25,8 +25,7 @@ Cognito đặt **trước** Runtime chứ không đặt ở Runtime hay Gateway,
 
 ```bash
 cp infra/auth/auth.env.example infra/auth/auth.env
-./infra/auth/01-user-pool.sh     # pool support-users: LITE, chỉ admin tạo user, mật khẩu ≥ 12
-./infra/auth/02-app-client.sh    # support-web: public (không secret), SRP + ADMIN_USER_PASSWORD + REFRESH
+# pool support-users + client support-web: Terraform (modules/auth)
 ./infra/auth/03-test-users.sh    # 8 user = 8 khách trong eval, mật khẩu → test-users.env (chmod 600)
 
 python scripts/invoke_runtime.py "Đơn #1003 tới đâu?" --customer C003 --auth
@@ -34,9 +33,9 @@ python scripts/invoke_runtime.py --cases --auth
 python scripts/invoke_runtime.py "Đơn #1003 tới đâu?" --auth --attack tampered   # → 401 bad_signature
 ```
 
-Script nào cũng chạy lại được. Pool id và client id tra theo **tên** mỗi lần chạy, không lưu vào file.
-`auth.env` và `test-users.env` đã gitignore. `99-destroy.sh` xoá client, pool và file mật khẩu
-(bắt gõ lại tên pool để xác nhận).
+User test **không** ở trong Terraform: mật khẩu sẽ nằm plaintext trong state. `03-test-users.sh` chạy
+lại được; pool id tra theo **tên** mỗi lần chạy. `auth.env` và `test-users.env` đã gitignore. Pool có
+`prevent_destroy` trong Terraform: plan nào định xoá / tạo lại pool (mất cả 8 user) đều bị chặn.
 
 ## Cấu hình và lý do
 

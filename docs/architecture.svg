@@ -170,5 +170,5 @@
 <text x="420" y="1520.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#374151">• Tag = git SHA + immutable → biết Runtime đang chạy commit nào; rollback = trỏ về SHA cũ.</text>
 <text x="420" y="1550.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#374151">• Image chỉ chứa code (agents/, tools/, serve.py): không .env, không test, không dữ liệu — cấu hình tiêm lúc chạy.</text>
 <text x="420" y="1580.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#374151">• Bước tiếp theo của pipeline: GitHub Actions tự build + push bằng OIDC (không key lâu dài), runner ARM hoặc buildx.</text>
-<text x="420" y="1610.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#374151">• Ghi nợ Terraform: import ECR, DynamoDB, Runtime, Gateway, Lambda + các role (đang tạo bằng CLI).</text>
+<text x="420" y="1610.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#374151">• Terraform (Day 65): toàn bộ resource đã import vào state, đổi qua PR → plan → Approve → apply.</text>
 </svg>

@@ -1,43 +1,35 @@
-# infra/runtime — AgentCore Runtime (tạo bằng CLI, Day 59)
+# infra/runtime — AgentCore Runtime (Day 59; Terraform từ Day 65)
 
-> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+> **Day 65:** resource do Terraform quản ([infra/terraform/modules/runtime](../terraform/README.md)) — đổi gì thì sửa `.tf` / `terraform.tfvars` → PR → plan → merge → Approve. Script tạo / `99-destroy.sh` đã xoá; ở đây chỉ còn script vận hành / test.
 
-Script tạo / vận hành **IAM execution role** + **AgentCore Runtime** cho `support-agent`.
-Giá trị thật (KB ID, image tag…) nằm trong `runtime.env` — **không commit** (`.gitignore`).
-Account ID không ghi ở đâu cả: script tự lấy bằng `aws sts get-caller-identity`.
-
-> Tạm thời bằng CLI vì repo chưa có pipeline Terraform. **Ghi nợ:** khi Terraform hoá, `import`
-> role `support-agent-runtime`, Runtime `support_agent` (cùng ECR `support-agent`, DynamoDB `support-orders`).
+Script vận hành **AgentCore Runtime** `support_agent`. Role `support-agent-runtime`, Runtime (image,
+lifecycle, biến môi trường) và log group nằm trong `infra/terraform/modules/runtime`.
+`runtime.env` (không commit) chỉ còn cần `AWS_REGION` + `RUNTIME_NAME` cho script dưới, và tên role /
+model cho `infra/iam-audit.sh`.
 
 ## Cách dùng
 
 ```bash
 cd support-agent
-cp infra/runtime/runtime.env.example infra/runtime/runtime.env   # điền KB_ID, IMAGE_TAG (ORDER_BACKEND, POLICY_BACKEND, GATEWAY_NAME có sẵn)
-./infra/runtime/01-create-role.sh        # role + trust policy + inline permissions (chạy lại = cập nhật)
-./infra/runtime/02-create-runtime.sh     # tạo Runtime từ image ECR, chờ READY
+cp infra/runtime/runtime.env.example infra/runtime/runtime.env
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003
 ./infra/runtime/04-logs.sh 15m           # log CloudWatch
-./infra/runtime/07-log-retention.sh      # giữ log 14 ngày (sau lần invoke đầu)
 python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
 ```
 
 | File | Việc |
 |---|---|
 | `runtime.env.example` | Danh sách biến (mẫu, commit). Bản thật `runtime.env` không commit |
-| `_env.sh` | Nạp + kiểm biến, render policy ra thư mục tạm (tự xoá), hàm tra Runtime theo tên |
-| `trust-policy.json.tpl` | Ai được mượn role: chỉ `bedrock-agentcore.amazonaws.com`, chỉ từ account này (`SourceAccount` + `SourceArn` → chống confused deputy) |
-| `permissions-policy.json.tpl` | Role làm được gì — least privilege (bảng dưới) |
-| `01-create-role.sh` | Tạo / cập nhật role `support-agent-runtime` |
-| `02-create-runtime.sh` | Tạo Runtime `support_agent` (image, role, network PUBLIC, lifecycle, biến môi trường), chờ READY |
+| `_env.sh` | Nạp + kiểm biến, thư mục tạm (tự xoá), hàm tra Runtime theo tên |
 | `03-invoke.sh` | Gọi 1 câu (CLI), in JSON + session id |
 | `04-logs.sh` | Tail log CloudWatch của Runtime |
-| `05-update-image.sh` | Đổi image / cấu hình (update thay TOÀN BỘ cấu hình → gửi lại đủ) |
 | `06-stop-session.sh` | Dừng 1 session ngay, không chờ idle timeout |
-| `07-log-retention.sh` | Đặt thời hạn giữ log (`LOG_RETENTION_DAYS`, mặc định 14). Log group mặc định **không bao giờ hết hạn** — chạy sau lần invoke đầu |
-| `99-destroy.sh` | Xoá Runtime + role (bắt gõ lại tên để xác nhận). Không đụng ECR / DynamoDB / KB |
 
-## Permissions (least privilege)
+Đổi image: build + push ECR (tag = git SHA) → sửa `image_tag` trong `infra/terraform/live/terraform.tfvars` → PR.
+Trust policy của role: chỉ `bedrock-agentcore.amazonaws.com`, chỉ từ account này (`SourceAccount` +
+`SourceArn` → chống confused deputy).
+
+## Permissions (least privilege, `modules/runtime/main.tf`)
 
 | Sid | Quyền | Phạm vi |
 |---|---|---|
@@ -49,11 +41,10 @@ python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
 | AppOrdersTable | `dynamodb:GetItem` | chỉ bảng `support-orders` — **chỉ khi `ORDER_BACKEND=direct`** |
 | AppGatewayInvoke | `bedrock-agentcore:InvokeGateway` | chỉ gateway `support-gateway` — **chỉ khi `ORDER_BACKEND=gateway`** (Day 60) |
 
-`01-create-role.sh` lọc quyền theo `ORDER_BACKEND` / `POLICY_BACKEND`: tool nào đi qua Gateway thì bỏ
-quyền đọc trực tiếp của tool đó. Cả hai qua Gateway → role chỉ còn `InvokeModel` + `InvokeGateway`
-(+ ECR / log / X-Ray): container không tự đọc dữ liệu nào. Đổi đường: sửa `runtime.env` →
-`01-create-role.sh` → `05-update-image.sh` (không cần build lại image; id + URL Gateway tra theo
-`GATEWAY_NAME`). Container chỉ nhận biến của đường đang dùng (`ORDERS_TABLE` / `POLICY_KB_ID` / `GATEWAY_URL`).
+Từ Day 61 cả hai tool đi qua Gateway → role chỉ còn `InvokeModel` + `InvokeGateway` (+ ECR / log /
+X-Ray): container không tự đọc dữ liệu nào. Terraform chỉ dựng đường Gateway (`ORDER_BACKEND` /
+`POLICY_BACKEND = gateway`, `GATEWAY_URL` lấy từ output `module.gateway`). Đường `direct` vẫn còn trong
+code agent (chạy local), nhưng role cloud không có `GetItem` / `Retrieve`.
 
 Bỏ so với mẫu docs: `GetWorkloadAccessToken*` (code chưa dùng workload identity — thêm ở ngày Identity).
 

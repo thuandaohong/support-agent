@@ -104,8 +104,8 @@ ECR repo `support-agent` tạo bằng CLI (Day 58): scan on push, tag IMMUTABLE,
 
 ## Chạy trên AgentCore Runtime (Day 59)
 
-Role + Runtime tạo bằng script trong [infra/runtime/](infra/runtime/README.md) (biến thật trong
-`infra/runtime/runtime.env`, không commit).
+Role + Runtime do Terraform quản (`infra/terraform/modules/runtime`, Day 65). Script vận hành trong
+[infra/runtime/](infra/runtime/README.md) (tên Runtime trong `infra/runtime/runtime.env`, không commit).
 
 ```bash
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003   # 1 câu qua cloud
@@ -185,7 +185,7 @@ mã khách, nên khách khác dùng lại session id cũng không vào chung mic
 [infra/api/README.md](infra/api/README.md) · [frontend/README.md](frontend/README.md).
 
 ```bash
-./infra/api/01-bridge-lambda.sh && ./infra/api/02-http-api.sh && ./infra/api/03-frontend-env.sh
+./infra/api/03-frontend-env.sh                  # frontend/.env.local (API + Bridge do Terraform tạo)
 python scripts/api_smoke.py --throttle          # 11 ca qua API thật
 cd frontend && npm install && npm run dev       # http://localhost:5173
 ```
