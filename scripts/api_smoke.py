@@ -34,7 +34,7 @@ def api_url() -> str:
     for a in boto3.client("apigatewayv2", region_name=REGION).get_apis()["Items"]:
         if a["Name"] == API_NAME:
             return a["ApiEndpoint"] + "/chat"
-    sys.exit(f"Không thấy HTTP API {API_NAME} — chạy infra/api/02-http-api.sh")
+    sys.exit(f"Không thấy HTTP API {API_NAME} — Terraform tạo (infra/terraform, modules/web_api)")
 
 
 def post(url, body, token=None, raw_auth=None):

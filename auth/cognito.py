@@ -32,13 +32,13 @@ class Cognito:
         for p in self.idp.list_user_pools(MaxResults=60)["UserPools"]:
             if p["Name"] == POOL_NAME:
                 return p["Id"]
-        raise SystemExit(f"Không thấy user pool {POOL_NAME} — chạy infra/auth/01-user-pool.sh")
+        raise SystemExit(f"Không thấy user pool {POOL_NAME} — Terraform tạo (infra/terraform, modules/auth)")
 
     def _client_id(self) -> str:
         for c in self.idp.list_user_pool_clients(UserPoolId=self.pool_id, MaxResults=60)["UserPoolClients"]:
             if c["ClientName"] == CLIENT_NAME:
                 return c["ClientId"]
-        raise SystemExit(f"Không thấy app client {CLIENT_NAME} — chạy infra/auth/02-app-client.sh")
+        raise SystemExit(f"Không thấy app client {CLIENT_NAME} — Terraform tạo (infra/terraform, modules/auth)")
 
     def verifier(self) -> TokenVerifier:
         return TokenVerifier(self.issuer, [self.client_id])
