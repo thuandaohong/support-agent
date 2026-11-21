@@ -16,6 +16,7 @@ from pathlib import Path
 
 EVAL_DIR = Path(__file__).resolve().parent.parent / "eval"
 GRAPH_CASES = EVAL_DIR / "graph_cases.jsonl"
+GOLDEN = EVAL_DIR / "golden.jsonl"          # Day 66: bộ đề chính (ca độc lập)
 CONVERSATIONS = EVAL_DIR / "conversation_cases.jsonl"
 
 
