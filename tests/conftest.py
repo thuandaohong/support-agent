@@ -16,6 +16,9 @@ if os.environ.get("RUN_INTEGRATION") == "1":
     load_dotenv()
 
 os.environ.setdefault("AWS_REGION", "us-east-1")
+# boto3 KHÔNG đọc AWS_REGION, chỉ đọc AWS_DEFAULT_REGION (Lambda thật tự đặt cả hai). Bridge tạo client
+# lúc import, không truyền region → thiếu biến này thì CI (không có ~/.aws/config) lỗi NoRegionError.
+os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 os.environ.setdefault("POLICY_KB_ID", "TEST_KB")
 os.environ.setdefault("ORDERS_TABLE", "test-orders")
 os.environ.setdefault("AGENT_RUNTIME_ARN", "arn:aws:bedrock-agentcore:us-east-1:ACCOUNT:runtime/test_agent-TEST")   # Day 64 bridge
