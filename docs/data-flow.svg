@@ -15,8 +15,8 @@
 <text x="722" y="115.0" font-size="15" text-anchor="start" dominant-baseline="middle" font-weight="normal" fill="#111827">File eval</text>
 <path d="M580,184 A280.0,14 0 0 0 1140,184 L1140,276 A280.0,14 0 0 1 580,276 Z" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
 <ellipse cx="860.0" cy="184" rx="280.0" ry="14" fill="#fef9c3" stroke="#ca8a04" stroke-width="2.5"/>
-<text x="860.0" y="226.9" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">eval/graph_cases.jsonl</text>
-<text x="860.0" y="249.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">{id, question, customer_id, route, order_lookup, expect}</text>
+<text x="860.0" y="226.9" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">eval/golden.jsonl</text>
+<text x="860.0" y="249.0" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">{id, group, question, customer_id, route, order_lookup, sources, reference}</text>
 <rect x="660" y="340" width="400" height="80" rx="10" fill="#eef2ff" stroke="#4f46e5" stroke-width="2.5"/>
 <text x="860.0" y="368.9" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="bold" fill="#111827">try_graph.main()</text>
 <text x="860.0" y="391.1" font-size="17" text-anchor="middle" dominant-baseline="middle" font-weight="normal" fill="#111827">đọc từng dòng · AS_OF_DATE = 2026-11-08</text>

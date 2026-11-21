@@ -69,8 +69,9 @@ cp .env.example .env   # điền POLICY_KB_ID
 python tools/search_policy.py "Gói Premium đổi trả bao nhiêu ngày?"
 python tools/get_order.py 1003 C003          # customer_id bắt buộc: đơn người khác → không thấy
 python -m agents.graph "Đơn #1003 còn đổi trả được không?" --customer C003 -v   # chạy cả graph
-python -m agents.try_graph                   # 18 tình huống biên (eval/graph_cases.jsonl)
-python -m agents.try_supervisor              # routing accuracy trên eval/routing_cases.jsonl
+python scripts/run_eval.py                   # Day 66: golden 36 ca → bảng theo nhóm + eval/results/<ts>-local.jsonl
+python -m agents.try_graph                   # cùng golden, in câu trả lời để đọc bằng mắt
+python -m agents.try_supervisor              # routing nhanh: chỉ gọi router trên golden
 ```
 
 ## Container (AgentCore Runtime)
@@ -109,7 +110,7 @@ Role + Runtime do Terraform quản (`infra/terraform/modules/runtime`, Day 65). 
 
 ```bash
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003   # 1 câu qua cloud
-python scripts/invoke_runtime.py --cases                                 # 18 ca eval qua cloud
+python scripts/run_eval.py --target runtime                             # golden qua cloud, chấm + lưu file
 ./infra/runtime/04-logs.sh 15m                                           # log CloudWatch
 ```
 
@@ -207,7 +208,8 @@ cd infra/terraform/live && terraform init && terraform plan   # chỉ đọc
 |---|---|---|---|
 | Unit — logic thuần + graph với AWS giả | `python -m pytest -q` | Không | Mỗi lần sửa code; **CI** chạy mỗi push/PR (`.github/workflows/test.yml`) |
 | Integration — KB, DynamoDB, cả graph thật | `RUN_INTEGRATION=1 python -m pytest -v tests/test_integration.py` | Có (~$0.005) | Trước khi merge thay đổi tool / prompt / version |
-| Eval — 18 tình huống, in câu trả lời để đọc | `python -m agents.try_graph` | Có (~$0.01) | Khi đổi prompt/model (Phase E: chấm tự động) |
+| Golden — bộ đề khớp dữ liệu | `python -m pytest -q tests/test_golden.py` | Không | CI, mỗi lần sửa `eval/golden.jsonl` |
+| Eval — 36 ca golden, chấm route / tra đơn / nguồn, lưu file | `python scripts/run_eval.py [--target runtime]` | Có (~$0.02) | Khi đổi prompt / model / image (Day 20: chấm câu trả lời) |
 
 Test integration chỉ kiểm phần tất định (nguồn, route, order_lookup, steps), không so nguyên văn câu
 trả lời của LLM. CI không cần credentials AWS nào.

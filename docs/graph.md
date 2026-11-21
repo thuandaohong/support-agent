@@ -159,7 +159,7 @@ Bản Mermaid (cùng nội dung):
 
 ```mermaid
 flowchart TD
-    JSONL[("eval/graph_cases.jsonl<br/>{id, question, customer_id,<br/>route, order_lookup, expect}")]
+    JSONL[("eval/golden.jsonl<br/>{id, group, question, customer_id,<br/>route, order_lookup, sources, reference}")]
     TG["try_graph.main()<br/>đọc từng dòng, AS_OF_DATE = 2026-11-08"]
     ASK["graph.ask()<br/>dựng State ban đầu"]
 

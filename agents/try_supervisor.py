@@ -1,20 +1,18 @@
-"""Đo routing accuracy của supervisor trên eval/routing_cases.jsonl (gọi LLM thật).
+"""Đo routing accuracy CHỈ của supervisor trên eval/golden.jsonl (gọi LLM thật, rẻ: không chạy tool / writer).
+
+Cả graph + chấm nguồn + lưu file: scripts/run_eval.py (Day 66).
 
 Chạy: python -m agents.try_supervisor
 """
-import json
-from pathlib import Path
-
+from agents.eval_cases import GOLDEN, load
 from agents.supervisor import ROUTER_MODEL_ID, supervisor_node
-
-CASES = Path(__file__).resolve().parent.parent / "eval" / "routing_cases.jsonl"
 
 
 def main():
-    cases = [json.loads(line) for line in CASES.read_text(encoding="utf-8").splitlines() if line]
+    cases = load(GOLDEN)
     passed = 0
     for c in cases:
-        out = supervisor_node({"question": c["question"], "customer_id": "C000"})
+        out = supervisor_node({"question": c["question"], "customer_id": c["customer_id"]})
         ok = out["route"] == c["route"] and out["order_id"] == c["order_id"]
         passed += ok
         mark = "✅" if ok else f"❌ (mong đợi route={c['route']} order_id={c['order_id']})"

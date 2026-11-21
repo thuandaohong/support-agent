@@ -1,7 +1,7 @@
 """Đọc bộ eval + chấm phần TẤT ĐỊNH — dùng chung cho agents/try_graph.py (local) và
 scripts/invoke_runtime.py (qua AgentCore Runtime), để hai nơi chấm cùng một luật.
 
-graph_cases.jsonl        — mỗi dòng 1 câu hỏi độc lập
+golden.jsonl             — mỗi dòng 1 câu hỏi độc lập (Day 66: gộp graph_cases + routing_cases)
 conversation_cases.jsonl — mỗi dòng 1 hội thoại nhiều lượt cùng session (Day 62)
 
 Giá trị mong đợi trong file:
@@ -15,7 +15,6 @@ import json
 from pathlib import Path
 
 EVAL_DIR = Path(__file__).resolve().parent.parent / "eval"
-GRAPH_CASES = EVAL_DIR / "graph_cases.jsonl"
 GOLDEN = EVAL_DIR / "golden.jsonl"          # Day 66: bộ đề chính (ca độc lập)
 CONVERSATIONS = EVAL_DIR / "conversation_cases.jsonl"
 

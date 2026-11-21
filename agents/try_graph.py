@@ -1,16 +1,16 @@
 """Chạy graph thật (gọi AWS) trên bộ eval — các trường hợp biên của dữ liệu.
 
-Tự kiểm phần TẤT ĐỊNH (route, order_lookup); câu trả lời thì in ra kèm "mong đợi" để người đọc
-so bằng mắt. Chấm câu trả lời tự động (LLM-as-judge) để dành cho Phase E.
+Tự kiểm phần TẤT ĐỊNH (route, order_lookup, nguồn — cùng luật với scripts/run_eval.py); câu trả lời
+thì in ra kèm reference để người đọc so bằng mắt. Chấm điểm + lưu file: scripts/run_eval.py (Day 66).
 
-Chạy: python -m agents.try_graph            (eval/graph_cases.jsonl — mỗi câu độc lập)
-      python -m agents.try_graph g05 g06    (chỉ vài câu)
+Chạy: python -m agents.try_graph            (eval/golden.jsonl — mỗi câu độc lập)
+      python -m agents.try_graph m04 m05    (chỉ vài câu)
       python -m agents.try_graph --chat     (eval/conversation_cases.jsonl — hội thoại nhiều lượt, Day 62)
 """
 import sys
 import uuid
 
-from agents.eval_cases import CONVERSATIONS, GRAPH_CASES, load, problems
+from agents.eval_cases import CONVERSATIONS, GOLDEN, load, problems, score
 from agents.graph import ask
 
 AS_OF_DATE = "2026-11-08"   # cố định cho eval, không phụ thuộc .env
@@ -28,16 +28,16 @@ def show(label: str, question: str, out: dict, bad: list[str], expect: str | Non
 
 def run_cases(wanted: set[str]) -> None:
     checked = passed = 0
-    for c in load(GRAPH_CASES):
+    for c in load(GOLDEN):
         if wanted and c["id"] not in wanted:
             continue
         # không truyền session_id → mỗi câu độc lập, không dính lịch sử của câu trước
         out = ask(c["question"], c["customer_id"], as_of_date=AS_OF_DATE)
-        bad = problems(out, c)
+        bad = score(out, c)["problems"]
         checked += 1
         passed += not bad
-        show(f"{c['id']} [{c['customer_id']}]", c["question"], out, bad, c.get("expect"))
-    print(f"Phần tất định (route + order_lookup): {passed}/{checked} đúng")
+        show(f"{c['id']} [{c['customer_id']}]", c["question"], out, bad, c["reference"])
+    print(f"Phần tất định (route + order_lookup + nguồn): {passed}/{checked} đúng")
 
 
 def run_conversations(wanted: set[str]) -> None:
