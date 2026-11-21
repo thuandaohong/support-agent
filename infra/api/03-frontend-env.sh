@@ -7,7 +7,7 @@ source "$(dirname "$0")/_env.sh"
 
 POOL="$(pool_id)"; [[ -n "$POOL" ]] || { echo "Chưa có user pool $POOL_NAME (infra/auth)" >&2; exit 1; }
 CLIENT="$(client_id "$POOL")"; [[ -n "$CLIENT" ]] || { echo "Chưa có app client $CLIENT_NAME" >&2; exit 1; }
-API="$(api_id)"; [[ -n "$API" ]] || { echo "Chưa có HTTP API $API_NAME — chạy 02-http-api.sh" >&2; exit 1; }
+API="$(api_id)"; [[ -n "$API" ]] || { echo "Chưa có HTTP API $API_NAME — Terraform tạo (infra/terraform, modules/web_api)" >&2; exit 1; }
 URL="$(aws apigatewayv2 get-api --api-id "$API" --query ApiEndpoint --output text)"
 
 OUT="$REPO/frontend/.env.local"

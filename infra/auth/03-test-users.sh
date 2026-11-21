@@ -13,7 +13,7 @@
 # Chạy lại được: user đã có + đã có mật khẩu trong file → bỏ qua; thiếu mật khẩu → đặt lại.
 source "$(dirname "$0")/_env.sh"
 
-POOL="$(pool_id)"; [[ -n "$POOL" ]] || { echo "Chưa có user pool $POOL_NAME — chạy 01-user-pool.sh" >&2; exit 1; }
+POOL="$(pool_id)"; [[ -n "$POOL" ]] || { echo "Chưa có user pool $POOL_NAME — Terraform tạo (infra/terraform, modules/auth)" >&2; exit 1; }
 umask 077; touch "$USERS_FILE"; chmod 600 "$USERS_FILE"
 
 new_password() {   # 24 ký tự ngẫu nhiên + chắc chắn đủ 4 loại (policy của pool)

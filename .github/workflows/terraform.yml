@@ -72,9 +72,6 @@ jobs:
       - name: Validate
         run: terraform validate -no-color
 
-      - name: Tra id để import (Day 65, xoá cùng imports.tf)
-        run: ./import-ids.sh
-
       - name: Plan (output thô KHÔNG ra log)
         run: |
           if ! terraform plan -input=false -no-color -lock-timeout=120s -out=tfplan > plan.log 2>&1; then
@@ -134,9 +131,6 @@ jobs:
 
       - name: Init
         run: terraform init -input=false -no-color > /dev/null
-
-      - name: Tra id để import (Day 65, xoá cùng imports.tf)
-        run: ./import-ids.sh
 
       - name: Plan lại + chặn xoá / tạo lại
         # Apply chạy plan MỚI (main có thể đã đổi sau khi review) → kiểm lại đúng luật như job plan

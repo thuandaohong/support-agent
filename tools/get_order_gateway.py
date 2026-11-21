@@ -21,7 +21,7 @@ import sys
 from tools.mcp_client import call_tool
 
 GATEWAY_URL = os.environ["GATEWAY_URL"]
-# Tên tool Gateway công bố = "<tên target>___<tên trong tool schema>" (infra/gateway/04-target.sh)
+# Tên tool Gateway công bố = "<tên target>___<tên trong tool schema>" (infra/terraform/modules/gateway)
 TOOL = f"{os.environ.get('GATEWAY_TARGET', 'orders')}___get_order"
 
 

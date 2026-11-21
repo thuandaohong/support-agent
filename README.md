@@ -100,13 +100,12 @@ docker push $REG/support-agent:$(git rev-parse --short HEAD)
 khách) gọi được, không mở cho trình duyệt. `as_of_date` không nhận từ payload (sửa được kết quả đổi trả).
 
 ECR repo `support-agent` tạo bằng CLI (Day 58): scan on push, tag IMMUTABLE, AES256, lifecycle
-(xoá image không tag sau 1 ngày, giữ 10 image gần nhất). **Cần `terraform import`** khi Terraform hoá
-(cùng với bảng DynamoDB `support-orders`).
+(xoá image không tag sau 1 ngày, giữ 10 image gần nhất). Từ Day 65 do Terraform quản (`modules/data`).
 
 ## Chạy trên AgentCore Runtime (Day 59)
 
-Role + Runtime tạo bằng script trong [infra/runtime/](infra/runtime/README.md) (biến thật trong
-`infra/runtime/runtime.env`, không commit).
+Role + Runtime do Terraform quản (`infra/terraform/modules/runtime`, Day 65). Script vận hành trong
+[infra/runtime/](infra/runtime/README.md) (tên Runtime trong `infra/runtime/runtime.env`, không commit).
 
 ```bash
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003   # 1 câu qua cloud
@@ -186,7 +185,7 @@ mã khách, nên khách khác dùng lại session id cũng không vào chung mic
 [infra/api/README.md](infra/api/README.md) · [frontend/README.md](frontend/README.md).
 
 ```bash
-./infra/api/01-bridge-lambda.sh && ./infra/api/02-http-api.sh && ./infra/api/03-frontend-env.sh
+./infra/api/03-frontend-env.sh                  # frontend/.env.local (API + Bridge do Terraform tạo)
 python scripts/api_smoke.py --throttle          # 11 ca qua API thật
 cd frontend && npm install && npm run dev       # http://localhost:5173
 ```
@@ -199,7 +198,7 @@ Thay đổi hạ tầng đi đường **PR → plan (comment tóm tắt, không 
 GitHub Actions + OIDC; không ai apply `live/` ở máy.
 
 ```bash
-cd infra/terraform/live && ./import-ids.sh && terraform init && terraform plan   # chỉ đọc
+cd infra/terraform/live && terraform init && terraform plan   # chỉ đọc
 ```
 
 ## Test (kim tự tháp)

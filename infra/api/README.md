@@ -1,6 +1,6 @@
 # infra/api: web chat (Day 64): HTTP API + Bridge Lambda
 
-> ⚠️ **Day 65:** resource ở đây nay do Terraform quản ([infra/terraform/](../terraform/README.md)). **Không chạy script tạo / sửa / `99-destroy.sh`** nữa (sẽ lệch state; xoá sau khi apply). Script chỉ đọc / vận hành (invoke, logs, test…) vẫn dùng được.
+> **Day 65:** resource do Terraform quản ([infra/terraform/modules/web_api](../terraform/README.md)) — đổi gì thì sửa `.tf` / `terraform.tfvars` → PR → plan → merge → Approve. Script tạo / `99-destroy.sh` đã xoá; ở đây chỉ còn script vận hành / test.
 
 ```
 Trình duyệt (frontend/, đăng nhập Cognito SRP)
@@ -28,14 +28,13 @@ chỉ hỏi được agent, không đọc thẳng được DynamoDB hay KB.
 
 ```bash
 cp infra/api/api.env.example infra/api/api.env
-./infra/api/01-bridge-lambda.sh     # role + Lambda (timeout 29 s)
-./infra/api/02-http-api.sh          # API + authorizer + route + stage + quyền gọi Lambda
+# Bridge Lambda + HTTP API: Terraform (module.lambda_bridge, module.web_api)
 ./infra/api/03-frontend-env.sh      # frontend/.env.local
 python scripts/api_smoke.py --throttle    # 11 ca qua API thật
 ```
 
-Script nào cũng chạy lại được, mọi id tra theo **tên**. Cần có trước: `infra/auth` (Cognito) và
-`infra/runtime` (Runtime). `99-destroy.sh` xoá API, Lambda, role và log (bắt gõ lại tên API để xác nhận).
+`03-frontend-env.sh` tra id theo **tên** và ghi `frontend/.env.local` (gitignore). Đổi origin / throttle:
+`allowed_origin`, `throttle_rate`, `throttle_burst` trong `infra/terraform/live/terraform.tfvars` → PR.
 
 ## Các quyết định và lý do
 
@@ -66,4 +65,4 @@ Script nào cũng chạy lại được, mọi id tra theo **tên**. Cần có t
 - Throttle tính **chung cho mọi người**: một người spam thì cả hệ chậm. HTTP API không có usage plan
   theo người, còn WAF chỉ gắn được REST API, CloudFront hoặc ALB. Khi có CloudFront thì gắn WAF rate-based rule.
 - Đăng xuất chỉ thu hồi refresh token. Access token đã cấp vẫn qua authorizer cho tới khi hết hạn (≤ 60 phút).
-- Frontend mới chạy local (`npm run dev`). Hosting S3 + CloudFront cùng Terraform hoá là việc của Day 65+.
+- Frontend mới chạy local (`npm run dev`). Hosting S3 + CloudFront là việc sau Day 65.

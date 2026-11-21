@@ -23,11 +23,11 @@ App.jsx   ── POST /chat  Authorization: Bearer <access token>
 ```bash
 ./infra/api/03-frontend-env.sh      # sinh frontend/.env.local (URL API, pool id, client id; gitignore)
 cd frontend && npm install && npm run dev
-# mở http://localhost:5173. Đúng origin này mới được CORS cho phép (ALLOWED_ORIGIN trong infra/api/api.env)
+# mở http://localhost:5173. Đúng origin này mới được CORS cho phép (allowed_origin trong infra/terraform/live/terraform.tfvars)
 ```
 
 Đăng nhập bằng user test (`C003`, `C020`, …). Mật khẩu nằm trong `infra/auth/test-users.env`
 (do `infra/auth/03-test-users.sh` sinh, chỉ máy bạn có).
 
 `npm run build` → `dist/`. Hosting (S3 + CloudFront) chưa làm. Khi có domain thật thì đổi
-`ALLOWED_ORIGIN` rồi chạy lại `infra/api/02-http-api.sh`.
+`allowed_origin` trong `infra/terraform/live/terraform.tfvars` (và `ALLOWED_ORIGIN` trong `infra/api/api.env`) → PR.
