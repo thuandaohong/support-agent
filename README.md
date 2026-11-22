@@ -69,8 +69,9 @@ cp .env.example .env   # điền POLICY_KB_ID
 python tools/search_policy.py "Gói Premium đổi trả bao nhiêu ngày?"
 python tools/get_order.py 1003 C003          # customer_id bắt buộc: đơn người khác → không thấy
 python -m agents.graph "Đơn #1003 còn đổi trả được không?" --customer C003 -v   # chạy cả graph
-python -m agents.try_graph                   # 18 tình huống biên (eval/graph_cases.jsonl)
-python -m agents.try_supervisor              # routing accuracy trên eval/routing_cases.jsonl
+python scripts/run_eval.py                   # Day 66: golden 36 ca → bảng theo nhóm + eval/results/<ts>-local.jsonl
+python -m agents.try_graph                   # cùng golden, in câu trả lời để đọc bằng mắt
+python -m agents.try_supervisor              # routing nhanh: chỉ gọi router trên golden
 ```
 
 ## Container (AgentCore Runtime)
@@ -109,7 +110,7 @@ Role + Runtime do Terraform quản (`infra/terraform/modules/runtime`, Day 65). 
 
 ```bash
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003   # 1 câu qua cloud
-python scripts/invoke_runtime.py --cases                                 # 18 ca eval qua cloud
+python scripts/run_eval.py --target runtime                             # golden qua cloud, chấm + lưu file
 ./infra/runtime/04-logs.sh 15m                                           # log CloudWatch
 ```
 
@@ -207,7 +208,8 @@ cd infra/terraform/live && terraform init && terraform plan   # chỉ đọc
 |---|---|---|---|
 | Unit — logic thuần + graph với AWS giả | `python -m pytest -q` | Không | Mỗi lần sửa code; **CI** chạy mỗi push/PR (`.github/workflows/test.yml`) |
 | Integration — KB, DynamoDB, cả graph thật | `RUN_INTEGRATION=1 python -m pytest -v tests/test_integration.py` | Có (~$0.005) | Trước khi merge thay đổi tool / prompt / version |
-| Eval — 18 tình huống, in câu trả lời để đọc | `python -m agents.try_graph` | Có (~$0.01) | Khi đổi prompt/model (Phase E: chấm tự động) |
+| Golden — bộ đề khớp dữ liệu | `python -m pytest -q tests/test_golden.py` | Không | CI, mỗi lần sửa `eval/golden.jsonl` |
+| Eval — 36 ca golden, chấm route / tra đơn / nguồn, lưu file | `python scripts/run_eval.py [--target runtime]` | Có (~$0.02) | Khi đổi prompt / model / image (Day 20: chấm câu trả lời) |
 
 Test integration chỉ kiểm phần tất định (nguồn, route, order_lookup, steps), không so nguyên văn câu
 trả lời của LLM. CI không cần credentials AWS nào.
@@ -231,6 +233,7 @@ trả lời của LLM. CI không cần credentials AWS nào.
 | Web API (Day 64) | smoke 11/11 (CORS, 401/403, scope, customer_id từ token, nhớ hội thoại, C020 không thấy đơn C003, 429); Bridge cần quyền trên cả ARN runtime lẫn endpoint DEFAULT; throttle stage gần đúng (~60 req/s → 18/150 bị 429), giới hạn cứng là 10 concurrency Lambda (503); qua web 2.3–3.5 s/câu | 2026-11-16 |
 | Test (Day 64) | 215 unit pass (thêm 22 ca Bridge) · iam-audit 6 role 33/33 | 2026-11-16 |
 | Trí nhớ hội thoại (image `a83ee77`) | routing eval 15/16 (y như trước); hội thoại 10/10 lượt (local và Runtime); 18 ca độc lập 18/18 (mỗi ca một session); log Runtime `has_session=yes` — header session tới được container; cùng session im lặng 330 s (> idle 300 s) → hỏi tiếp nhận `no_id` (đã quên, đúng thiết kế) | 2026-11-16 |
+| Golden eval (Day 66, 36 ca / 6 nhóm) | local và Runtime (image `a83ee77`) giống hệt, chạy 2 lần như nhau: routing **33/36 = 92%** · tra đơn 20/20 · nguồn 25/25 · đạt hết 33/36. 3 ca sai đều là router **route thừa `order`** khi hỏi chính sách thuần (`p05` "đặt hàng năm 2026", `p07` "gửi trả hàng", `p08` "đơn đang shipped") → `order_lookup=no_id` nhưng câu trả lời vẫn đúng (chỉ tốn thêm một bước). Security 4/4. 273 unit pass | 2026-11-21 |
 
 Sơ đồ graph: [docs/graph.md](docs/graph.md).
 

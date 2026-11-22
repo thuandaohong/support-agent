@@ -1,10 +1,10 @@
-"""Gọi agent đang chạy trên AgentCore Runtime (Day 59) — 1 câu, hoặc cả bộ eval/graph_cases.jsonl.
+"""Gọi agent đang chạy trên AgentCore Runtime (Day 59) — 1 câu, hoặc cả bộ eval/golden.jsonl.
 
 Giống agents/try_graph.py nhưng đi qua endpoint CLOUD thay vì gọi ask() tại chỗ → kiểm cả đường
 InvokeAgentRuntime → container → serve.py → ask(). Tự kiểm phần TẤT ĐỊNH (route, order_lookup).
 
 Chạy:  python scripts/invoke_runtime.py "Đơn #1003 còn đổi trả được không?" --customer C003
-       python scripts/invoke_runtime.py --cases            (cả 18 ca, MỖI CA MỘT SESSION)
+       python scripts/invoke_runtime.py --cases            (cả golden, MỖI CA MỘT SESSION)
        python scripts/invoke_runtime.py --cases g01 g07    (vài ca)
        python scripts/invoke_runtime.py --chat             (hội thoại nhiều lượt, Day 62)
        python scripts/invoke_runtime.py "Thế bảo hành?" --session <id cũ>   (hỏi tiếp một session)
@@ -37,7 +37,7 @@ from pathlib import Path
 import boto3
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from agents.eval_cases import CONVERSATIONS, GRAPH_CASES, load, problems
+from agents.eval_cases import CONVERSATIONS, GOLDEN, load, problems, score
 from auth.tokens import AuthError
 
 REGION = os.environ.get("AWS_REGION", "us-east-1")
@@ -124,17 +124,17 @@ def show(label: str, question: str, out: dict, ms: float, bad: list[str]) -> Non
 
 def run_cases(client, arn: str, wanted: set[str], backend: Backend | None) -> None:
     checked = passed = 0
-    for c in load(GRAPH_CASES):
+    for c in load(GOLDEN):
         if wanted and c["id"] not in wanted:
             continue
         # mỗi ca một session: ca độc lập không được thấy lịch sử của ca trước
         customer = who(backend, c["customer_id"])
         out, ms = timed(client, arn, new_session(f"eval-{c['id']}"), c["question"], customer)
-        bad = problems(out, c)
+        bad = score(out, c)["problems"]
         checked += 1
         passed += not bad
         show(f"{c['id']} [{customer}{' 🔑' if backend else ''}]", c["question"], out, ms, bad)
-    print(f"Qua Runtime — phần tất định (route + order_lookup): {passed}/{checked} đúng")
+    print(f"Qua Runtime — phần tất định (route + order_lookup + nguồn): {passed}/{checked} đúng")
 
 
 def run_conversations(client, arn: str, wanted: set[str], backend: Backend | None) -> None:
@@ -158,7 +158,7 @@ def main():
     parser = argparse.ArgumentParser(description="Gọi support-agent trên AgentCore Runtime.")
     parser.add_argument("question", nargs="*", help="câu hỏi, hoặc id ca khi dùng --cases")
     parser.add_argument("--customer", default="C003")
-    parser.add_argument("--cases", action="store_true", help="chạy eval/graph_cases.jsonl")
+    parser.add_argument("--cases", action="store_true", help="chạy eval/golden.jsonl (chấm + lưu file: scripts/run_eval.py)")
     parser.add_argument("--chat", action="store_true", help="chạy eval/conversation_cases.jsonl")
     parser.add_argument("--session", help="session id để hỏi tiếp một hội thoại (mặc định: mới)")
     parser.add_argument("--auth", action="store_true",

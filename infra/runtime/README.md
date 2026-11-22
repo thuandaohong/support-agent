@@ -14,7 +14,7 @@ cd support-agent
 cp infra/runtime/runtime.env.example infra/runtime/runtime.env
 ./infra/runtime/03-invoke.sh "Đơn #1003 còn đổi trả được không?" C003
 ./infra/runtime/04-logs.sh 15m           # log CloudWatch
-python scripts/invoke_runtime.py --cases # 18 ca eval qua endpoint cloud
+python scripts/run_eval.py --target runtime   # golden qua endpoint cloud, chấm + lưu file
 ```
 
 | File | Việc |

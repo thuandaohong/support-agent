@@ -38,3 +38,6 @@ crash.log
 
 # Day 65 — zip Lambda do archive_file sinh
 infra/terraform/live/.build/
+
+# Day 66 — kết quả eval (có câu trả lời đầy đủ, mỗi lần chạy một file) — không commit
+eval/results/
